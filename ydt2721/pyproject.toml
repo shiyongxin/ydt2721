@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ydt2721"
+version = "1.0.0"
+description = "YDT 2721 卫星链路计算软件 - 基于YD/T 2721-2014标准"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "shiyongxin", email = "syx189@189.cn"}
+]
+keywords = ["satellite", "link-budget", "YDT2721", "communication"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "pandas>=2.0.0",
+    "openpyxl>=3.1.0",
+    "reportlab>=4.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+]
+docs = [
+    "sphinx>=7.0.0",
+    "sphinx-rtd-theme>=1.3.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/ydt2721"
+Documentation = "https://ydt2721.readthedocs.io"
+Repository = "https://github.com/yourusername/ydt2721"
+Issues = "https://github.com/yourusername/ydt2721/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v"
+
+[tool.coverage.run]
+source = ["src/ydt2721"]
+omit = ["*/tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true

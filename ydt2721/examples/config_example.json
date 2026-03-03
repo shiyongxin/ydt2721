@@ -1,0 +1,62 @@
+{
+  "name": "示例链路计算",
+  "satellite": {
+    "longitude": 110.5,
+    "sat_eirp_ss": 48.48,
+    "sat_gt": 5.96,
+    "sat_gt_ref": 0,
+    "sat_sfd_ref": -84,
+    "sat_bo_i": 6,
+    "sat_bo_o": 3,
+    "transponder_bw": 54000000,
+    "adj_sat_longitude": null
+  },
+  "carrier": {
+    "info_rate": 2000000,
+    "fec_rate": 0.75,
+    "fec_type": "DVB-S2",
+    "spread_gain": 1,
+    "modulation": "QPSK",
+    "ebno_th": 4.5,
+    "alpha1": 1.2,
+    "alpha2": 1.4
+  },
+  "tx_station": {
+    "station_name": "北京",
+    "longitude": 116.45,
+    "latitude": 39.92,
+    "antenna_diameter": 4.5,
+    "efficiency": 0.65,
+    "frequency": 14.25,
+    "polarization": "V",
+    "feed_loss": 1.5,
+    "loss_at": 0.5,
+    "upc_max_comp": 5.0,
+    "antenna_noise_temp": null,
+    "receiver_noise_temp": null
+  },
+  "rx_station": {
+    "station_name": "乌鲁木齐",
+    "longitude": 87.68,
+    "latitude": 43.77,
+    "antenna_diameter": 1.8,
+    "efficiency": 0.65,
+    "frequency": 12.50,
+    "polarization": "H",
+    "feed_loss": 0.2,
+    "loss_ar": 0.5,
+    "antenna_noise_temp": 35,
+    "receiver_noise_temp": 75,
+    "upc_max_comp": null
+  },
+  "system": {
+    "availability": 99.66
+  },
+  "interference": {
+    "ci0_im": null,
+    "ci0_u_as": null,
+    "ci0_d_as": null,
+    "ci0_u_xp": null,
+    "ci0_d_xp": null
+  }
+}
