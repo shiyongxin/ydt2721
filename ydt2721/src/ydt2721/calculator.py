@@ -194,8 +194,9 @@ def complete_link_budget(
     result.azimuth = rx_azimuth
 
     # ========== 4. 空间损耗计算 ==========
-    uplink_loss = calculate_free_space_loss(tx_frequency * 1e6, tx_distance)
-    downlink_loss = calculate_free_space_loss(rx_frequency * 1e6, rx_distance)
+    # 频率从GHz转换为MHz: 14.25 GHz = 14250 MHz
+    uplink_loss = calculate_free_space_loss(tx_frequency * 1e3, tx_distance)
+    downlink_loss = calculate_free_space_loss(rx_frequency * 1e3, rx_distance)
 
     # 降雨衰减
     uplink_rain_att = calculate_rain_attenuation(
