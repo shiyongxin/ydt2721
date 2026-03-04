@@ -72,13 +72,13 @@ class ExcelReportGenerator:
         satellite = input_params.get('satellite', {})
         df_sat = pd.DataFrame([
             ['卫星经度', f"{satellite.get('longitude', 0)}°"],
-            ['饱和EIRP', f"{satellite.get('sat_eirp_ss', 0)} dBW"],
-            ['G/T值', f"{satellite.get('sat_gt', 0)} dB/K"],
-            ['参考点G/T', f"{satellite.get('sat_gt_ref', 0)} dB/K"],
-            ['参考点SFD', f"{satellite.get('sat_sfd_ref', 0)} dB(W/m²)"],
-            ['输入回退', f"{satellite.get('sat_bo_i', 0)} dB"],
-            ['输出回退', f"{satellite.get('sat_bo_o', 0)} dB"],
-            ['转发器带宽', f"{satellite.get('sat_transponder_bw', 0)/1e6:.2f} MHz"],
+            ['饱和EIRP', f"{satellite.get('eirp_ss', 0)} dBW"],
+            ['G/T值', f"{satellite.get('gt_s', 0)} dB/K"],
+            ['参考点G/T', f"{satellite.get('gt_s_ref', 0)} dB/K"],
+            ['参考点SFD', f"{satellite.get('sfd_ref', 0)} dB(W/m²)"],
+            ['输入回退', f"{satellite.get('bo_i', 0)} dB"],
+            ['输出回退', f"{satellite.get('bo_o', 0)} dB"],
+            ['转发器带宽', f"{satellite.get('transponder_bw', 0)/1e6:.2f} MHz"],
         ], columns=['参数', '数值'])
         df_sat.to_excel(writer, sheet_name='卫星参数', index=False)
 
@@ -90,7 +90,7 @@ class ExcelReportGenerator:
             ['FEC编码方式', carrier.get('fec_type', '-')],
             ['扩频增益', f"{carrier.get('spread_gain', 1)}"],
             ['调制方式', carrier.get('modulation', '-')],
-            ['Eb/No门限', f"{carrier.get('ebno_th', 0)} dB"],
+            ['Eb/No门限', f"{carrier.get('ebno_threshold', 0)} dB"],
             ['α₁', f"{carrier.get('alpha1', 1.2)}"],
             ['α₂', f"{carrier.get('alpha2', 1.4)}"],
         ], columns=['参数', '数值'])
@@ -99,7 +99,7 @@ class ExcelReportGenerator:
         # 发射站参数
         tx_station = input_params.get('tx_station', {})
         df_tx = pd.DataFrame([
-            ['站名', tx_station.get('station_name', '-')],
+            ['站名', tx_station.get('name', '-')],
             ['经度', f"{tx_station.get('longitude', 0)}°"],
             ['纬度', f"{tx_station.get('latitude', 0)}°"],
             ['天线口径', f"{tx_station.get('antenna_diameter', 0)} m"],
@@ -115,7 +115,7 @@ class ExcelReportGenerator:
         # 接收站参数
         rx_station = input_params.get('rx_station', {})
         df_rx = pd.DataFrame([
-            ['站名', rx_station.get('station_name', '-')],
+            ['站名', rx_station.get('name', '-')],
             ['经度', f"{rx_station.get('longitude', 0)}°"],
             ['纬度', f"{rx_station.get('latitude', 0)}°"],
             ['天线口径', f"{rx_station.get('antenna_diameter', 0)} m"],
