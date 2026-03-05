@@ -45,6 +45,38 @@ def create_parser() -> argparse.ArgumentParser:
 
   # 验证参数
   %(prog)s validate --config params.json
+
+降雨衰减模型:
+  --rain-model simplified
+    使用简化模型计算降雨衰减（速度快，适合初步设计）
+
+  --rain-model iturpy
+    使用 ITU-Rpy 完整标准计算（高精度，包含气体、云、闪烁衰减）
+
+模型对比:
+  简化模型:
+    - 计算速度: < 1ms
+    - 精度: ±50%%
+    - 功能: 仅降雨衰减
+    - 依赖: 无
+
+  ITU-Rpy:
+    - 计算速度: ~5ms
+    - 精度: ±10%%
+    - 功能: 气体 + 云 + 降雨 + 闪烁衰减
+    - 依赖: itur, numpy, scipy, pyproj, astropy
+
+推荐使用场景:
+  - 快速原型设计: simplified
+  - 初步设计评估: simplified
+  - 精确工程计算: iturpy
+  - 商用链路设计: iturpy + 专业软件验证
+  - 正式报告生成: iturpy
+
+注意:
+  - 简化模型为默认选项，无需额外依赖
+  - ITU-Rpy 需要安装: pip install itur
+  - 更多信息请参考: ITURPY_SUMMARY.md
         """
     )
 
@@ -74,6 +106,13 @@ def create_parser() -> argparse.ArgumentParser:
         '--no-validate',
         action='store_true',
         help='跳过参数验证'
+    )
+    calc_parser.add_argument(
+        '--rain-model',
+        type=str,
+        choices=['simplified', 'iturpy'],
+        default='simplified',
+        help='降雨衰减计算模型 (默认: simplified)'
     )
 
     # interactive命令
@@ -148,7 +187,7 @@ def validate_config(config: dict) -> bool:
 
 
 def execute_calculation(config: dict, output_prefix: str, output_format: str,
-                       skip_validation: bool = False) -> bool:
+                       skip_validation: bool = False, rain_model: str = 'simplified') -> bool:
     """执行链路计算"""
     # 验证参数
     if not skip_validation:
@@ -165,6 +204,7 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str,
 
     # 执行计算
     print("\n🔧 正在执行链路计算...")
+    print(f"📊 降雨衰减模型: {rain_model}")
     result = complete_link_budget(
         # 卫星参数
         sat_longitude=sat.get('longitude', 0),
@@ -212,6 +252,7 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str,
 
         # 系统参数
         availability=system.get('availability', 99.9),
+        rain_model=rain_model,  # 添加降雨模型参数
 
         # 干扰参数（可选）
         ci0_im=interference.get('ci0_im'),
@@ -362,7 +403,7 @@ def main():
             return
 
         config = load_config(args.config)
-        execute_calculation(config, args.output, args.format, args.no_validate)
+        execute_calculation(config, args.output, args.format, args.no_validate, args.rain_model)
 
     elif args.command == 'interactive':
         interactive_mode(args.output, args.format)

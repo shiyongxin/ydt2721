@@ -92,6 +92,17 @@ class LinkBudgetResult:
     uplink_loss: float = 0
     downlink_loss: float = 0
 
+    # 降雨模型信息
+    rain_model: str = 'simplified'  # 使用的降雨模型
+
+    # 降雨衰减分量（ITU-Rpy）
+    tx_gas_attenuation: float = 0  # 上行气体衰减
+    tx_cloud_attenuation: float = 0  # 上行云衰减
+    tx_scintillation_attenuation: float = 0  # 上行闪烁衰减
+    rx_gas_attenuation: float = 0  # 下行气体衰减
+    rx_cloud_attenuation: float = 0  # 下行云衰减
+    rx_scintillation_attenuation: float = 0  # 下行闪烁衰减
+
     # 晴天结果
     clear_sky_cn_u: float = 0
     clear_sky_cn_d: float = 0

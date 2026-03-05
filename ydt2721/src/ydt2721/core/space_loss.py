@@ -30,7 +30,13 @@ def calculate_free_space_loss(frequency: float, distance: float) -> float:
 
 def calculate_rain_rate(unavailability: float, latitude: float) -> float:
     """
-    计算降雨率 (简化版，完整实现需参考ITU-R P.837标准)
+    计算降雨率 (ITU-R P.837 简化公式)
+
+    使用公式: R = a × p^(-b)
+    p: 时间百分比 (0.001 ~ 1)
+    a, b: 纬度相关参数
+
+    unavailability 越大 → 降雨率越小 (反相关)
 
     Args:
         unavailability: 不可用时间百分比 (0-1)
@@ -40,9 +46,14 @@ def calculate_rain_rate(unavailability: float, latitude: float) -> float:
         降雨率, 单位mm/h
     """
     if latitude < 30:
-        return 20 + 40 * unavailability * 100
+        a, b = 18, 0.25  # 热带/亚热带
+    elif latitude < 45:
+        a, b = 15, 0.28  # 温带
     else:
-        return 30 + 50 * unavailability * 100
+        a, b = 12, 0.30  # 寒带
+
+    p = max(unavailability * 100, 0.001)  # 转换为百分比，最小0.001%
+    return a * (p ** (-b))
 
 
 def calculate_specific_attenuation(frequency: float, rain_rate: float,
@@ -164,3 +175,57 @@ def calculate_gt_degradation(rain_noise_temp: float, feed_loss: float,
     degraded_gt = (rain_noise_temp / feed_loss_linear + system_noise_temp)
     degradation_db = 10 * math.log10(degraded_gt / system_noise_temp)
     return degradation_db
+
+
+def calculate_rain_attenuation_with_model(
+    availability: float,
+    frequency: float,
+    elevation: float,
+    latitude: float,
+    pol: str = 'V',
+    model: str = 'simplified',
+    **kwargs
+) -> float:
+    """
+    计算降雨衰减（支持模型选择）
+
+    Args:
+        availability: 系统可用度, 单位%
+        frequency: 工作频率, 单位GHz
+        elevation: 仰角, 单位度
+        latitude: 纬度, 单位度
+        pol: 极化方式 (V/H)
+        model: 模型类型 ('simplified' 或 'iturpy')
+        **kwargs: ITU-Rpy 需要的其他参数
+
+    Returns:
+        降雨衰减, 单位dB
+    """
+    if model == 'simplified':
+        return calculate_rain_attenuation(
+            availability, frequency, elevation, latitude, pol
+        )
+    elif model == 'iturpy':
+        try:
+            from .itu_rain_wrapper import calculate_rain_attenuation_iturpy
+
+            result = calculate_rain_attenuation_iturpy(
+                lat=latitude,
+                lon=kwargs.get('longitude', 0),
+                satellite_lon=kwargs.get('satellite_lon', 110.5),
+                frequency=frequency,
+                polarization=pol,
+                antenna_diameter=kwargs.get('antenna_diameter', 1.8),
+                availability=availability,
+                station_height=kwargs.get('station_height', 0.0),
+                elevation=elevation
+            )
+            return result['rain_attenuation_dB']
+        except ImportError:
+            print("Warning: ITU-Rpy not installed, falling back to simplified model")
+            return calculate_rain_attenuation(
+                availability, frequency, elevation, latitude, pol
+            )
+    else:
+        raise ValueError(f"Unknown model: {model}")
+
