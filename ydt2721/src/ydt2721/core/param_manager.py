@@ -46,7 +46,8 @@ class ParameterValidator:
         'ebno_threshold': (0, 30),
 
         # 系统可用度
-        'availability': (90, 99.999),
+        'uplink_availability': (90, 99.999),
+        'downlink_availability': (90, 99.999),
 
         # 卫星参数
         'sat_eirp_ss': (30, 70),
@@ -254,7 +255,8 @@ class ParameterValidator:
         carrier: CarrierParams,
         tx_station: EarthStationParams,
         rx_station: EarthStationParams,
-        availability: float
+        uplink_availability: float,
+        downlink_availability: float
     ) -> List[str]:
         """验证所有参数"""
         all_errors = []
@@ -265,7 +267,12 @@ class ParameterValidator:
         all_errors.extend(cls.validate_earth_station_params(rx_station))
 
         try:
-            cls.validate_range('availability', availability)
+            cls.validate_range('uplink_availability', uplink_availability)
+        except ValueError as e:
+            all_errors.append(str(e))
+
+        try:
+            cls.validate_range('downlink_availability', downlink_availability)
         except ValueError as e:
             all_errors.append(str(e))
 
@@ -299,7 +306,8 @@ class ParameterManager:
             'receiver_noise_temp': 75,
         },
         'system': {
-            'availability': 99.9,
+            'uplink_availability': 99.9,
+            'downlink_availability': 99.9,
         },
     }
 

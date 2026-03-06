@@ -118,6 +118,14 @@ class LinkBudgetResult:
     # 下行降雨结果
     downlink_rain_margin: float = 0
 
+    # 反向计算结果：从可用度计算的UPC余量和功放功率
+    calculated_upc_margin: float = 0  # 根据可用度计算的所需UPC余量 (dB)
+    calculated_hpa_power_clear: float = 0  # 计算的晴天功放功率 (W)
+    calculated_hpa_power_rain: float = 0  # 计算的雨天功放功率 (W)
+    upc_sufficient: bool = True  # 当前UPC能力是否满足可用度要求
+    uplink_rain_attenuation: float = 0  # 上行降雨衰减 (dB)
+    required_upc_margin: float = 0  # 所需UPC余量 (dB)
+
     # 干扰结果
     cn_im: float = 0
     cn_u_as: float = 0
@@ -137,5 +145,6 @@ class CalculationInput:
     carrier: CarrierParams
     tx_station: EarthStationParams
     rx_station: EarthStationParams
-    availability: float  # 系统可用度 (%)
+    uplink_availability: float  # 上行链路可用度 (%)
+    downlink_availability: float  # 下行链路可用度 (%)
     interference: Optional[InterferenceParams] = None

@@ -36,7 +36,7 @@ class ExcelReportGenerator:
                 ExcelReportGenerator._write_input_sheets(writer, input_params)
 
                 # 计算结果
-                ExcelReportGenerator._write_result_sheets(writer, result)
+                ExcelReportGenerator._write_result_sheets(writer, result, input_params)
 
             return True
         except Exception as e:
@@ -49,6 +49,13 @@ class ExcelReportGenerator:
         data = [
             ['计算时间', datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
             ['软件版本', '1.0.0'],
+            ['', ''],
+            ['反向计算结果（从可用度计算的UPC余量和功放功率）', ''],
+            ['上行降雨衰减', f"{result.uplink_rain_attenuation:.4f} dB"],
+            ['所需UPC余量', f"**{result.calculated_upc_margin:.4f} dB**"],
+            ['晴天功放功率（计算值）', f"**{result.calculated_hpa_power_clear:.4f} W**"],
+            ['雨天功放功率（计算值）', f"**{result.calculated_hpa_power_rain:.4f} W**"],
+            ['UPC是否满足', '✅ 满足' if result.upc_sufficient else '❌ 不满足'],
             ['', ''],
             ['主要输出参数', ''],
             ['载波分配带宽', f"{result.allocated_bandwidth/1e6:.2f} MHz"],
@@ -132,12 +139,13 @@ class ExcelReportGenerator:
         # 系统参数
         system = input_params.get('system', {})
         df_sys = pd.DataFrame([
-            ['系统可用度', f"{system.get('availability', 0):.3f}%"],
+            ['上行链路可用度', f"{system.get('uplink_availability', 0):.3f}%"],
+            ['下行链路可用度', f"{system.get('downlink_availability', 0):.3f}%"],
         ], columns=['参数', '数值'])
         df_sys.to_excel(writer, sheet_name='系统参数', index=False)
 
     @staticmethod
-    def _write_result_sheets(writer, result: Any):
+    def _write_result_sheets(writer, result: Any, input_params: Dict[str, Any] = None):
         """写入计算结果表"""
 
         # 带宽计算
@@ -203,3 +211,24 @@ class ExcelReportGenerator:
             ['下行交叉极化干扰C/I', f"{result.cn_d_xp:.2f} dB"],
         ], columns=['参数', '数值'])
         df_interference.to_excel(writer, sheet_name='干扰结果', index=False)
+
+        # 反向计算结果（从可用度计算的UPC余量和功放功率）
+        df_reverse_power = pd.DataFrame([
+            ['上行降雨衰减', f"{result.uplink_rain_attenuation:.4f} dB"],
+            ['所需UPC余量', f"**{result.calculated_upc_margin:.4f} dB**"],
+            ['晴天功放功率', f"**{result.calculated_hpa_power_clear:.4f} W**"],
+            ['雨天功放功率', f"**{result.calculated_hpa_power_rain:.4f} W**"],
+            ['UPC是否满足', '✅ 满足' if result.upc_sufficient else '❌ 不满足'],
+        ], columns=['参数', '数值'])
+        df_reverse_power.to_excel(writer, sheet_name='反向计算结果', index=False)
+
+        # 反向计算结果（如果有）
+        if input_params and input_params.get('_reverse_calc_result'):
+            reverse_calc = input_params.get('_reverse_calc_result')
+            df_reverse = pd.DataFrame([
+                ['预留UPC补偿量', f"{reverse_calc.get('upc_reserved_dB', 0):.2f} dB"],
+                ['可达上行可用度', f"{reverse_calc.get('availability', 0):.4f}%"],
+                ['对应不可用度', f"{reverse_calc.get('unavailability', 0):.4f}%"],
+                ['可补偿降雨衰减', f"{reverse_calc.get('compensable_rain_attenuation_dB', 0):.4f} dB"],
+            ], columns=['参数', '数值'])
+            df_reverse.to_excel(writer, sheet_name='反向计算结果', index=False)

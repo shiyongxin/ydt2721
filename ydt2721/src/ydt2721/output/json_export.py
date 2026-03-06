@@ -48,6 +48,13 @@ class JSONExporter:
                     'margin_clear_sky_db': round(result.clear_sky_margin, 2),
                     'margin_uplink_rain_db': round(result.uplink_rain_margin, 2),
                     'margin_downlink_rain_db': round(result.downlink_rain_margin, 2),
+                },
+                'reverse_calculation': {
+                    'uplink_rain_attenuation_db': round(result.uplink_rain_attenuation, 4),
+                    'required_upc_margin_db': round(result.calculated_upc_margin, 4),
+                    'calculated_hpa_power_clear_w': round(result.calculated_hpa_power_clear, 4),
+                    'calculated_hpa_power_rain_w': round(result.calculated_hpa_power_rain, 4),
+                    'upc_sufficient': result.upc_sufficient,
                 }
             }
 
@@ -65,13 +72,17 @@ class JSONExporter:
     @staticmethod
     def _convert_params_to_dict(params: Dict[str, Any]) -> Dict[str, Any]:
         """将参数转换为字典"""
-        return {
+        result = {
             'satellite': params.get('satellite', {}),
             'carrier': params.get('carrier', {}),
             'tx_station': params.get('tx_station', {}),
             'rx_station': params.get('rx_station', {}),
             'system': params.get('system', {}),
         }
+        # Include reverse calculation result if available
+        if '_reverse_calc_result' in params:
+            result['_reverse_calc_result'] = params['_reverse_calc_result']
+        return result
 
     @staticmethod
     def _convert_result_to_dict(result: Any) -> Dict[str, Any]:
@@ -119,6 +130,13 @@ class JSONExporter:
                 'd_as_ci_db': round(result.cn_d_as, 2),
                 'u_xp_ci_db': round(result.cn_u_xp, 2),
                 'd_xp_ci_db': round(result.cn_d_xp, 2),
+            },
+            'reverse_calculation': {
+                'uplink_rain_attenuation_db': round(result.uplink_rain_attenuation, 4),
+                'required_upc_margin_db': round(result.calculated_upc_margin, 4),
+                'calculated_hpa_power_clear_w': round(result.calculated_hpa_power_clear, 4),
+                'calculated_hpa_power_rain_w': round(result.calculated_hpa_power_rain, 4),
+                'upc_sufficient': result.upc_sufficient,
             },
         }
 

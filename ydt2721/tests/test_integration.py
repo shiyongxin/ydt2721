@@ -77,7 +77,7 @@ class TestCompleteWorkflow:
 
         # 2. 验证参数
         errors = ParameterValidator.validate_all_params(
-            satellite, carrier, tx_station, rx_station, 99.66
+            satellite, carrier, tx_station, rx_station, 99.66, 99.66
         )
         assert len(errors) == 0
 
@@ -123,7 +123,8 @@ class TestCompleteWorkflow:
             rx_antenna_noise_temp=rx_station.antenna_noise_temp,
             rx_receiver_noise_temp=rx_station.receiver_noise_temp,
 
-            availability=99.66,
+            uplink_availability=99.66,
+            downlink_availability=99.66,
         )
 
         # 4. 验证计算结果
@@ -185,7 +186,8 @@ class TestCompleteWorkflow:
                 'receiver_noise_temp': rx_station.receiver_noise_temp,
             },
             'system': {
-                'availability': 99.66,
+                'uplink_availability': 99.66,
+                'downlink_availability': 99.66,
             },
         }
 
@@ -275,7 +277,8 @@ class TestEdgeCases:
             rx_antenna_noise_temp=100,
             rx_receiver_noise_temp=200,
 
-            availability=99.9,
+            uplink_availability=99.9,
+            downlink_availability=99.9,
         )
 
         # 余量应该是负值或接近0

@@ -166,7 +166,8 @@ class TestIntegrationWithCalculator:
             rx_antenna_noise_temp=35,
             rx_receiver_noise_temp=75,
 
-            availability=99.66,
+            uplink_availability=99.66,
+            downlink_availability=99.66,
             rain_model='simplified'
         )
 
@@ -218,7 +219,8 @@ class TestIntegrationWithCalculator:
             rx_antenna_noise_temp=35,
             rx_receiver_noise_temp=75,
 
-            availability=99.66,
+            uplink_availability=99.66,
+            downlink_availability=99.66,
             rain_model='iturpy'
         )
 

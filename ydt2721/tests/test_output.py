@@ -68,7 +68,8 @@ def sample_input_params():
             'receiver_noise_temp': 75,
         },
         'system': {
-            'availability': 99.66,
+            'uplink_availability': 99.66,
+            'downlink_availability': 99.66,
         },
     }
 
@@ -119,7 +120,8 @@ def sample_result(sample_input_params):
         rx_antenna_noise_temp=params['rx_station']['antenna_noise_temp'],
         rx_receiver_noise_temp=params['rx_station']['receiver_noise_temp'],
 
-        availability=params['system']['availability'],
+        uplink_availability=params['system']['uplink_availability'],
+        downlink_availability=params['system']['downlink_availability'],
     )
 
     return result

@@ -47,6 +47,66 @@ from .core.rain_impact import (
 from .core.constants import LIGHT_SPEED, MODULATION_INDEX
 
 
+def calculate_required_upc_and_power(
+    uplink_rain_att: float,
+    sfd: float,
+    bo_il: float,
+    gm2_tx: float,
+    uplink_loss: float,
+    tx_loss_at: float,
+    tx_antenna_gain: float,
+    tx_feed_loss: float,
+    upc_max: float,
+) -> dict:
+    """
+    根据上行降雨衰减计算所需的UPC余量和功放功率
+
+    Args:
+        uplink_rain_att: 上行降雨衰减 (dB)
+        sfd: 卫星SFD (dB(W/m²))
+        bo_il: 输入回退 (dB)
+        gm2_tx: 发射天线单位面积增益 (dB/m²)
+        uplink_loss: 上行自由空间损耗 (dB)
+        tx_loss_at: 发射站损耗 (dB)
+        tx_antenna_gain: 发射天线增益 (dBi)
+        tx_feed_loss: 发射馈线损耗 (dB)
+        upc_max: 当前配置的UPC最大补偿量 (dB)
+
+    Returns:
+        dict: 包含所需UPC余量、功放功率等信息的字典
+    """
+    # 所需UPC余量等于降雨衰减量
+    required_upc = uplink_rain_att
+
+    # 晴天EIRP
+    eirp_el_clear = sfd - bo_il - gm2_tx + uplink_loss + tx_loss_at
+
+    # 雨天EIRP (含UPC补偿)
+    eirp_el_rain = eirp_el_clear + required_upc
+
+    # 晴天HPA功率
+    hpa_power_clear_dBW = eirp_el_clear - tx_antenna_gain + tx_feed_loss
+    hpa_power_clear_W = 10 ** (hpa_power_clear_dBW / 10)
+
+    # 雨天HPA功率
+    hpa_power_rain_dBW = eirp_el_rain - tx_antenna_gain + tx_feed_loss
+    hpa_power_rain_W = 10 ** (hpa_power_rain_dBW / 10)
+
+    # UPC是否足够
+    upc_sufficient = required_upc <= upc_max
+
+    return {
+        'required_upc_margin': required_upc,
+        'calculated_hpa_power_clear_W': hpa_power_clear_W,
+        'calculated_hpa_power_rain_W': hpa_power_rain_W,
+        'upc_sufficient': upc_sufficient,
+        'eirp_el_clear_dBW': eirp_el_clear,
+        'eirp_el_rain_dBW': eirp_el_rain,
+        'hpa_power_clear_dBW': hpa_power_clear_dBW,
+        'hpa_power_rain_dBW': hpa_power_rain_dBW,
+    }
+
+
 def calculate_off_axis_gain(antenna_diameter: float, frequency: float,
                              angle: float) -> float:
     """
@@ -123,7 +183,8 @@ def complete_link_budget(
     rx_receiver_noise_temp: float,
 
     # 系统参数
-    availability: float,
+    uplink_availability: float,  # 上行链路可用度 (%)
+    downlink_availability: float,  # 下行链路可用度 (%)
     rain_model: str = 'simplified',  # 降雨模型：'simplified' 或 'iturpy'
 
     # 干扰参数（可选）
@@ -213,7 +274,7 @@ def complete_link_budget(
                 frequency=tx_frequency,
                 polarization=tx_polarization,
                 antenna_diameter=tx_antenna_diameter,
-                availability=availability,
+                availability=uplink_availability,
                 station_height=0.0,  # 可以从参数中获取
                 elevation=tx_elevation
             )
@@ -227,7 +288,7 @@ def complete_link_budget(
                 frequency=rx_frequency,
                 polarization=rx_polarization,
                 antenna_diameter=rx_antenna_diameter,
-                availability=availability,
+                availability=downlink_availability,
                 station_height=0.0,  # 可以从参数中获取
                 elevation=rx_elevation
             )
@@ -255,10 +316,10 @@ def complete_link_budget(
             print("Warning: ITU-Rpy not installed, falling back to simplified model")
             # 回退到简化模型
             uplink_rain_att = calculate_rain_attenuation(
-                availability, tx_frequency, tx_elevation, tx_lat, tx_polarization
+                uplink_availability, tx_frequency, tx_elevation, tx_lat, tx_polarization
             )
             downlink_rain_att = calculate_rain_attenuation(
-                availability, rx_frequency, rx_elevation, rx_lat, rx_polarization
+                downlink_availability, rx_frequency, rx_elevation, rx_lat, rx_polarization
             )
             rain_noise_temp = calculate_rain_noise_temp(downlink_rain_att)
             rx_feed_loss_linear = 10 ** (rx_feed_loss / 10)
@@ -271,10 +332,10 @@ def complete_link_budget(
     else:
         # 使用简化模型（默认）
         uplink_rain_att = calculate_rain_attenuation(
-            availability, tx_frequency, tx_elevation, tx_lat, tx_polarization
+            uplink_availability, tx_frequency, tx_elevation, tx_lat, tx_polarization
         )
         downlink_rain_att = calculate_rain_attenuation(
-            availability, rx_frequency, rx_elevation, rx_lat, rx_polarization
+            downlink_availability, rx_frequency, rx_elevation, rx_lat, rx_polarization
         )
 
         # 降雨噪声温度和G/T下降
@@ -291,14 +352,37 @@ def complete_link_budget(
     result.downlink_loss = downlink_loss
     result.rain_model = rain_model
 
-    # ========== 5. 晴天链路计算 ==========
-    # 卫星功率分配
+    # 存储上行降雨衰减用于反向计算
+    result.uplink_rain_attenuation = uplink_rain_att
+
+    # ========== 4.5 卫星功率分配（需要在反向计算之前完成）==========
+    # 注意：必须先计算卫星功率分配，得到实际的bo_il值
     eirp_sl, pfd, bo_il, bo_ol = calculate_satellite_power_allocation(
         sat_eirp_ss, sat_bo_o, sat_sfd, bw_ratio / 100
     )
     result.satellite_eirp = eirp_sl
     result.pfd = pfd
 
+    # ========== 4.6 反向计算：从可用度计算所需UPC余量和功放功率 ==========
+    # 使用计算后的bo_il而不是配置的sat_bo_i
+    reverse_calc = calculate_required_upc_and_power(
+        uplink_rain_att=uplink_rain_att,
+        sfd=sat_sfd,
+        bo_il=bo_il,  # 使用卫星功率分配后的bo_il
+        gm2_tx=gm2_tx,
+        uplink_loss=uplink_loss,
+        tx_loss_at=tx_loss_at,
+        tx_antenna_gain=tx_antenna_gain,
+        tx_feed_loss=tx_feed_loss,
+        upc_max=upc_max,
+    )
+    result.calculated_upc_margin = reverse_calc['required_upc_margin']
+    result.calculated_hpa_power_clear = reverse_calc['calculated_hpa_power_clear_W']
+    result.calculated_hpa_power_rain = reverse_calc['calculated_hpa_power_rain_W']
+    result.upc_sufficient = reverse_calc['upc_sufficient']
+    result.required_upc_margin = reverse_calc['required_upc_margin']
+
+    # ========== 5. 晴天链路计算 ==========
     # 上行C/N
     cn_u = calculate_uplink_cn(pfd, gm2_tx, sat_gt, noise_bw)
 

@@ -180,7 +180,7 @@ class TestParameterValidator:
         )
 
         errors = ParameterValidator.validate_all_params(
-            satellite, carrier, tx_station, rx_station, 99.66
+            satellite, carrier, tx_station, rx_station, 99.66, 99.66
         )
 
         assert len(errors) == 0

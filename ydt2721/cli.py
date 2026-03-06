@@ -20,11 +20,20 @@ from ydt2721 import (
     PDFReportGenerator,
 )
 from ydt2721.core.param_manager import ParameterValidator, ParameterManager
+from ydt2721.core.satellite import calculate_sfd, calculate_antenna_gain_per_area
+from ydt2721.core.earth_station import calculate_antenna_pointing, calculate_antenna_gain, calculate_satellite_distance
+from ydt2721.core.space_loss import calculate_free_space_loss
+from ydt2721.core.reverse_calc import (
+    calculate_uplink_power_from_upc,
+    invert_availability_from_rain_attenuation,
+    analyze_power_margin,
+)
 from ydt2721.models.dataclass import (
     SatelliteParams,
     CarrierParams,
     EarthStationParams,
 )
+from ydt2721.core.constants import LIGHT_SPEED
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -52,6 +61,21 @@ def create_parser() -> argparse.ArgumentParser:
 
   --rain-model iturpy
     使用 ITU-Rpy 完整标准计算（高精度，包含气体、云、闪烁衰减）
+
+计算模式:
+  --calc-mode power
+    根据可用度需求计算所需功放功率（默认模式）
+
+  --calc-mode availability
+    根据预留的 UPC 补偿量计算可达可用度
+    需要配合 --upc-reserved 参数使用
+
+  --upc-reserved dB
+    预留的 UPC 补偿量 (dB)，仅在 availability 模式下使用
+
+  --hpa-power watts
+    指定功放功率 (W)，分析给定功放可支持的可用度
+    可与 power 或 availability 模式配合使用
 
 模型对比:
   简化模型:
@@ -114,6 +138,36 @@ def create_parser() -> argparse.ArgumentParser:
         default='simplified',
         help='降雨衰减计算模型 (默认: simplified)'
     )
+    calc_parser.add_argument(
+        '--calc-mode',
+        type=str,
+        choices=['power', 'availability'],
+        default='power',
+        help='计算模式: power=根据可用度计算功率, availability=根据UPC计算可用度 (默认: power)'
+    )
+    calc_parser.add_argument(
+        '--upc-reserved',
+        type=float,
+        default=None,
+        help='预留的UPC补偿量 (dB)，仅在availability模式下使用'
+    )
+    calc_parser.add_argument(
+        '--hpa-power',
+        type=float,
+        default=None,
+        help='指定功放功率 (W)，用于分析给定功放可支持的可用度'
+    )
+    calc_parser.add_argument(
+        '--station-height',
+        type=float,
+        default=0.0,
+        help='地球站海拔高度 (km)，默认0'
+    )
+    calc_parser.add_argument(
+        '--print-json',
+        action='store_true',
+        help='在控制台输出JSON结果'
+    )
 
     # interactive命令
     interactive_parser = subparsers.add_parser('interactive', help='交互式计算')
@@ -168,9 +222,11 @@ def validate_config(config: dict) -> bool:
         carrier = CarrierParams(**config.get('carrier', {}))
         tx_station = EarthStationParams(**config.get('tx_station', {}))
         rx_station = EarthStationParams(**config.get('rx_station', {}))
-        availability = config.get('system', {}).get('availability', 99.9)
+        system = config.get('system', {})
+        uplink_availability = system.get('uplink_availability', 99.9)
+        downlink_availability = system.get('downlink_availability', 99.9)
 
-        errors = validator.validate_all_params(satellite, carrier, tx_station, rx_station, availability)
+        errors = validator.validate_all_params(satellite, carrier, tx_station, rx_station, uplink_availability, downlink_availability)
 
         if errors:
             print("❌ 参数验证失败：")
@@ -186,9 +242,433 @@ def validate_config(config: dict) -> bool:
         return False
 
 
-def execute_calculation(config: dict, output_prefix: str, output_format: str,
-                       skip_validation: bool = False, rain_model: str = 'simplified') -> bool:
+def execute_reverse_calculation(config: dict, output_prefix: str, output_format: str,
+                                 upc_reserved: float, rain_model: str = 'simplified',
+                                 station_height: float = 0.0) -> bool:
+    """执行反向计算：根据UPC补偿量计算可达可用度"""
+    # 提取参数
+    sat = config.get('satellite', {})
+    tx = config.get('tx_station', {})
+    system = config.get('system', {})
+
+    # 卫星参数
+    sat_sfd_ref = sat.get('sfd_ref', 0)
+    sat_gt = sat.get('gt_s', 0)
+    sat_gt_ref = sat.get('gt_s_ref', 0)
+    sat_bo_i = sat.get('bo_i', 6)
+    sat_longitude = sat.get('longitude', 0)
+
+    # 发射站参数
+    tx_lat = tx.get('latitude', 0)
+    tx_lon = tx.get('longitude', 0)
+    tx_frequency = tx.get('frequency', 14.25)
+    tx_polarization = tx.get('polarization', 'V')
+    tx_antenna_diameter = tx.get('antenna_diameter', 4.5)
+    tx_efficiency = tx.get('efficiency', 0.65)
+    tx_loss_at = tx.get('loss_at', 0.5)
+
+    # 计算所需参数
+    sat_sfd = calculate_sfd(sat_sfd_ref, sat_gt, sat_gt_ref)
+    gm2_tx = calculate_antenna_gain_per_area(tx_frequency * 1e9)
+
+    # 计算仰角和距离
+    tx_elevation, _ = calculate_antenna_pointing(tx_lat, tx_lon, sat_longitude)
+    tx_distance = calculate_satellite_distance(tx_lat, tx_lon, sat_longitude)
+    uplink_loss = calculate_free_space_loss(tx_frequency * 1e3, tx_distance)
+
+    # 根据预留UPC反推可用度
+    print("\n🔧 正在执行反向计算...")
+    print(f"📊 计算模式: 根据UPC补偿量计算可用度")
+    print(f"📊 降雨衰减模型: {rain_model}")
+    print(f"🔧 预留UPC补偿量: {upc_reserved} dB")
+
+    # 计算雨天可补偿的降雨衰减
+    upc_max = tx.get('upc_max_comp', 5.0)
+    if upc_reserved > upc_max:
+        print(f"⚠️  警告: 预留UPC ({upc_reserved} dB) 超过最大UPC ({upc_max} dB)")
+        print(f"   实际可用的UPC补偿量: {upc_max} dB")
+        upc_reserved = upc_max
+
+    # 可补偿的降雨衰减
+    compensable_rain_att = upc_reserved
+
+    # 反推可用度
+    availability, details = invert_availability_from_rain_attenuation(
+        target_rain_att=compensable_rain_att,
+        lat=tx_lat,
+        lon=tx_lon,
+        satellite_lon=sat_longitude,
+        frequency=tx_frequency,
+        polarization=tx_polarization,
+        antenna_diameter=tx_antenna_diameter,
+        elevation=tx_elevation,
+        station_height=station_height,
+        rain_model=rain_model
+    )
+
+    # 计算功放参数需求
+    power_result = calculate_uplink_power_from_upc(
+        upc_reserved=upc_reserved,
+        sfd=sat_sfd,
+        bo_il=sat_bo_i,
+        gm2=gm2_tx,
+        loss_u=uplink_loss,
+        loss_at=tx_loss_at
+    )
+
+    # 计算天线增益
+    tx_wavelength = LIGHT_SPEED / (tx_frequency * 1e9)
+    tx_antenna_gain = calculate_antenna_gain(tx_antenna_diameter, tx_wavelength, tx_efficiency)
+
+    # 晴天功放功率
+    eirp_el_clear = power_result['eirp_el_clear_dBW']
+    hpa_power_clear_dbw = eirp_el_clear - tx_antenna_gain + tx.get('feed_loss', 1.5)
+    hpa_power_clear_w = 10 ** (hpa_power_clear_dbw / 10)
+
+    # 雨天功放功率
+    eirp_el_rain = power_result['eirp_el_rain_dBW']
+    hpa_power_rain_dbw = eirp_el_rain - tx_antenna_gain + tx.get('feed_loss', 1.5)
+    hpa_power_rain_w = 10 ** (hpa_power_rain_dbw / 10)
+
+    # 显示结果
+    print("\n📊 计算结果：")
+    print(f"\n  【可用度分析】")
+    print(f"  可达上行可用度: {availability:.4f} %")
+    print(f"  对应不可用度: {details['unavailability']:.4f} %")
+    print(f"  可补偿降雨衰减: {compensable_rain_att:.4f} dB")
+    print(f"  计算误差: {details['error_dB']:.4f} dB")
+
+    print(f"\n  【功放功率需求】")
+    print(f"  晴天功放功率: {hpa_power_clear_w:.4f} W ({hpa_power_clear_dbw:.2f} dBW)")
+    print(f"  雨天功放功率: {hpa_power_rain_w:.4f} W ({hpa_power_rain_dbw:.2f} dBW)")
+    print(f"  雨天功率增加: {power_result['eirp_increase_dB']:.2f} dB")
+    print(f"  功率增加倍数: {hpa_power_rain_w / hpa_power_clear_w:.2f}x")
+
+    print(f"\n  【EIRP】")
+    print(f"  晴天EIRP: {power_result['eirp_el_clear_dBW']:.2f} dBW")
+    print(f"  雨天EIRP: {power_result['eirp_el_rain_dBW']:.2f} dBW")
+
+    # 生成JSON报告
+    if output_format in ['all', 'json']:
+        result = {
+            'calculation_mode': 'availability_from_upc',
+            'rain_model': rain_model,
+            'upc_reserved_dB': upc_reserved,
+            'availability': {
+                'uplink': availability,
+                'unavailability': details['unavailability'],
+                'compensable_rain_attenuation_dB': compensable_rain_att
+            },
+            'hpa_power': {
+                'clear_sky_W': hpa_power_clear_w,
+                'clear_sky_dBW': hpa_power_clear_dbw,
+                'rain_W': hpa_power_rain_w,
+                'rain_dBW': hpa_power_rain_dbw,
+                'increase_dB': power_result['eirp_increase_dB'],
+                'increase_ratio': hpa_power_rain_w / hpa_power_clear_w
+            },
+            'eirp': {
+                'clear_sky_dBW': power_result['eirp_el_clear_dBW'],
+                'rain_dBW': power_result['eirp_el_rain_dBW']
+            },
+            'details': details
+        }
+
+        json_file = f"{output_prefix}.json"
+        import json
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
+        print(f"\n  ✅ JSON报告: {json_file}")
+
+    print("\n✅ 完成！")
+    return True
+
+
+def execute_power_margin_analysis(config: dict, output_prefix: str,
+                                    hpa_power_w: float, rain_model: str = 'simplified',
+                                    station_height: float = 0.0) -> bool:
+    """分析给定功放功率可支持的可用度"""
+    # 提取参数
+    sat = config.get('satellite', {})
+    tx = config.get('tx_station', {})
+
+    # 卫星参数
+    sat_sfd_ref = sat.get('sfd_ref', 0)
+    sat_gt = sat.get('gt_s', 0)
+    sat_gt_ref = sat.get('gt_s_ref', 0)
+    sat_bo_i = sat.get('bo_i', 6)
+    sat_longitude = sat.get('longitude', 0)
+
+    # 发射站参数
+    tx_lat = tx.get('latitude', 0)
+    tx_lon = tx.get('longitude', 0)
+    tx_frequency = tx.get('frequency', 14.25)
+    tx_polarization = tx.get('polarization', 'V')
+    tx_antenna_diameter = tx.get('antenna_diameter', 4.5)
+    tx_efficiency = tx.get('efficiency', 0.65)
+    tx_feed_loss = tx.get('feed_loss', 1.5)
+    tx_loss_at = tx.get('loss_at', 0.5)
+    upc_max = tx.get('upc_max_comp', 5.0)
+
+    # 计算所需参数
+    sat_sfd = calculate_sfd(sat_sfd_ref, sat_gt, sat_gt_ref)
+    gm2_tx = calculate_antenna_gain_per_area(tx_frequency * 1e9)
+
+    # 计算仰角和距离
+    tx_elevation, _ = calculate_antenna_pointing(tx_lat, tx_lon, sat_longitude)
+    tx_distance = calculate_satellite_distance(tx_lat, tx_lon, sat_longitude)
+    uplink_loss = calculate_free_space_loss(tx_frequency * 1e3, tx_distance)
+
+    # 计算天线增益
+    tx_wavelength = LIGHT_SPEED / (tx_frequency * 1e9)
+    tx_antenna_gain = calculate_antenna_gain(tx_antenna_diameter, tx_wavelength, tx_efficiency)
+
+    print("\n🔧 正在分析功放功率余量...")
+    print(f"📊 降雨衰减模型: {rain_model}")
+    print(f"🔧 指定功放功率: {hpa_power_w:.4f} W")
+
+    # 分析功放余量
+    result = analyze_power_margin(
+        hpa_power_w=hpa_power_w,
+        antenna_gain=tx_antenna_gain,
+        feed_loss=tx_feed_loss,
+        sfd=sat_sfd,
+        bo_il=sat_bo_i,
+        gm2=gm2_tx,
+        loss_u=uplink_loss,
+        loss_at=tx_loss_at,
+        upc_max=upc_max,
+        lat=tx_lat,
+        lon=tx_lon,
+        satellite_lon=sat_longitude,
+        frequency=tx_frequency,
+        polarization=tx_polarization,
+        antenna_diameter=tx_antenna_diameter,
+        elevation=tx_elevation,
+        station_height=station_height,
+        rain_model=rain_model
+    )
+
+    # 显示结果
+    print("\n📊 分析结果：")
+    print(f"\n  【功放参数】")
+    print(f"  功放功率: {result['hpa_power_W']:.4f} W ({result['hpa_power_dBW']:.2f} dBW)")
+    print(f"  晴天EIRP: {result['eirp_el_clear_dBW']:.2f} dBW")
+
+    print(f"\n  【UPC余量】")
+    print(f"  UPC余量: {result['upc_margin_dB']:.2f} dB")
+    print(f"  可用UPC: {result['upc_available_dB']:.2f} dB")
+    print(f"  限制因素: {result['upc_limited_by']}")
+
+    print(f"\n  【可达可用度】")
+    print(f"  可达上行可用度: {result['supported_availability']:.4f} %")
+    print(f"  对应不可用度: {result['unavailability']:.4f} %")
+    print(f"  可补偿降雨衰减: {result['compensable_rain_attenuation_dB']:.4f} dB")
+
+    # 生成JSON报告
+    json_file = f"{output_prefix}.json"
+    import json
+    with open(json_file, 'w', encoding='utf-8') as f:
+        json.dump(result, f, indent=2, ensure_ascii=False)
+    print(f"\n  ✅ JSON报告: {json_file}")
+
+    print("\n✅ 完成！")
+    return True
+
+
+def execute_reverse_calculation_inline(config: dict, upc_reserved: float,
+                                         rain_model: str, station_height: float) -> dict:
+    """执行反向计算（内联版本，返回结果字典）"""
+    sat = config.get('satellite', {})
+    tx = config.get('tx_station', {})
+
+    sat_sfd_ref = sat.get('sfd_ref', 0)
+    sat_gt = sat.get('gt_s', 0)
+    sat_gt_ref = sat.get('gt_s_ref', 0)
+    sat_bo_i = sat.get('bo_i', 6)
+    sat_longitude = sat.get('longitude', 0)
+
+    tx_lat = tx.get('latitude', 0)
+    tx_lon = tx.get('longitude', 0)
+    tx_frequency = tx.get('frequency', 14.25)
+    tx_polarization = tx.get('polarization', 'V')
+    tx_antenna_diameter = tx.get('antenna_diameter', 4.5)
+
+    sat_sfd = calculate_sfd(sat_sfd_ref, sat_gt, sat_gt_ref)
+    gm2_tx = calculate_antenna_gain_per_area(tx_frequency * 1e9)
+
+    tx_elevation, _ = calculate_antenna_pointing(tx_lat, tx_lon, sat_longitude)
+    tx_distance = calculate_satellite_distance(tx_lat, tx_lon, sat_longitude)
+    uplink_loss = calculate_free_space_loss(tx_frequency * 1e3, tx_distance)
+
+    print("\n" + "="*60)
+    print("🔧 反向计算：根据UPC补偿量计算可达可用度")
+    print("="*60)
+    print(f"📊 降雨衰减模型: {rain_model}")
+    print(f"🔧 预留UPC补偿量: {upc_reserved} dB")
+
+    upc_max = tx.get('upc_max_comp', 5.0)
+    if upc_reserved > upc_max:
+        print(f"⚠️  警告: 预留UPC ({upc_reserved} dB) 超过最大UPC ({upc_max} dB)")
+        print(f"   实际可用的UPC补偿量: {upc_max} dB")
+        upc_reserved = upc_max
+
+    compensable_rain_att = upc_reserved
+
+    availability, details = invert_availability_from_rain_attenuation(
+        target_rain_att=compensable_rain_att,
+        lat=tx_lat,
+        lon=tx_lon,
+        satellite_lon=sat_longitude,
+        frequency=tx_frequency,
+        polarization=tx_polarization,
+        antenna_diameter=tx_antenna_diameter,
+        elevation=tx_elevation,
+        station_height=station_height,
+        rain_model=rain_model
+    )
+
+    print(f"\n  【可用度分析】")
+    print(f"  可达上行可用度: {availability:.4f} %")
+    print(f"  对应不可用度: {details['unavailability']:.4f} %")
+    print(f"  可补偿降雨衰减: {compensable_rain_att:.4f} dB")
+
+    return {
+        'availability': availability,
+        'unavailability': details['unavailability'],
+        'compensable_rain_attenuation_dB': compensable_rain_att,
+        'upc_reserved_dB': upc_reserved,
+        'details': details
+    }
+
+
+def execute_calculation(config: dict, output_prefix: str, output_format: str, print_json: bool = False,
+                       skip_validation: bool = False, rain_model: str = 'simplified',
+                       calc_mode: str = 'power', upc_reserved: float = None,
+                       hpa_power: float = None, station_height: float = 0.0) -> bool:
     """执行链路计算"""
+def execute_calculation(config: dict, output_prefix: str, output_format: str, print_json: bool = False,
+                       skip_validation: bool = False, rain_model: str = 'simplified',
+                       calc_mode: str = 'power', upc_reserved: float = None,
+                       hpa_power: float = None, station_height: float = 0.0) -> bool:
+    """执行链路计算"""
+def execute_calculation(config: dict, output_prefix: str, output_format: str, print_json: bool = False,
+                       skip_validation: bool = False, rain_model: str = 'simplified',
+                       calc_mode: str = 'power', upc_reserved: float = None,
+                       hpa_power: float = None, station_height: float = 0.0) -> bool:
+    """执行链路计算"""
+def execute_calculation(config: dict, output_prefix: str, output_format: str, print_json: bool = False,
+                       skip_validation: bool = False, rain_model: str = 'simplified',
+                       calc_mode: str = 'power', upc_reserved: float = None,
+                       hpa_power: float = None, station_height: float = 0.0) -> bool:
+    """执行链路计算"""
+def execute_calculation(config: dict, output_prefix: str, output_format: str, print_json: bool = False,
+                       skip_validation: bool = False, rain_model: str = 'simplified',
+                       calc_mode: str = 'power', upc_reserved: float = None,
+                       hpa_power: float = None, station_height: float = 0.0) -> bool:
+    """执行链路计算"""
+def execute_calculation(config: dict, output_prefix: str, output_format: str, print_json: bool = False,
+                       skip_validation: bool = False, rain_model: str = 'simplified',
+                       calc_mode: str = 'power', upc_reserved: float = None,
+                       hpa_power: float = None, station_height: float = 0.0) -> bool:
+    """执行链路计算"""
+def execute_calculation(config: dict, output_prefix: str, output_format: str, print_json: bool = False,
+                       skip_validation: bool = False, rain_model: str = 'simplified',
+                       calc_mode: str = 'power', upc_reserved: float = None,
+                       hpa_power: float = None, station_height: float = 0.0) -> bool:
+    """执行链路计算"""
+    config = json.loads(json.dumps(config))
+
+    # 参数覆盖：--upc-reserved 覆盖配置文件中的 upc_max_comp
+    if upc_reserved is not None:
+        if 'tx_station' not in config:
+            config['tx_station'] = {}
+        config['tx_station']['upc_max_comp'] = upc_reserved
+
+    # 存储反向计算结果
+    reverse_calc_result = None
+
+    # 处理 availability 计算模式
+    if calc_mode == 'availability' and upc_reserved is not None:
+        reverse_calc_result = execute_reverse_calculation_inline(
+            config, upc_reserved, rain_model, station_height
+        )
+        # 将计算出的可用度更新到配置中
+        if 'system' not in config:
+            config['system'] = {}
+        config['system']['uplink_availability'] = reverse_calc_result['availability']
+
+    # 处理 --hpa-power 功放余量分析
+    if hpa_power is not None:
+        sat = config.get('satellite', {})
+        tx = config.get('tx_station', {})
+
+        sat_sfd_ref = sat.get('sfd_ref', 0)
+        sat_gt = sat.get('gt_s', 0)
+        sat_gt_ref = sat.get('gt_s_ref', 0)
+        sat_bo_i = sat.get('bo_i', 6)
+        sat_longitude = sat.get('longitude', 0)
+
+        tx_lat = tx.get('latitude', 0)
+        tx_lon = tx.get('longitude', 0)
+        tx_frequency = tx.get('frequency', 14.25)
+        tx_polarization = tx.get('polarization', 'V')
+        tx_antenna_diameter = tx.get('antenna_diameter', 4.5)
+        tx_efficiency = tx.get('efficiency', 0.65)
+        tx_feed_loss = tx.get('feed_loss', 1.5)
+        tx_loss_at = tx.get('loss_at', 0.5)
+        upc_max = tx.get('upc_max_comp', 5.0)
+
+        sat_sfd = calculate_sfd(sat_sfd_ref, sat_gt, sat_gt_ref)
+        gm2_tx = calculate_antenna_gain_per_area(tx_frequency * 1e9)
+
+        tx_elevation, _ = calculate_antenna_pointing(tx_lat, tx_lon, sat_longitude)
+        tx_distance = calculate_satellite_distance(tx_lat, tx_lon, sat_longitude)
+        uplink_loss = calculate_free_space_loss(tx_frequency * 1e3, tx_distance)
+
+        tx_wavelength = LIGHT_SPEED / (tx_frequency * 1e9)
+        tx_antenna_gain = calculate_antenna_gain(tx_antenna_diameter, tx_wavelength, tx_efficiency)
+
+        print("\n" + "="*60)
+        print("🔧 功放功率余量分析")
+        print("="*60)
+        print(f"🔧 指定功放功率: {hpa_power:.4f} W")
+
+        margin_result = analyze_power_margin(
+            hpa_power_w=hpa_power,
+            antenna_gain=tx_antenna_gain,
+            feed_loss=tx_feed_loss,
+            sfd=sat_sfd,
+            bo_il=sat_bo_i,
+            gm2=gm2_tx,
+            loss_u=uplink_loss,
+            loss_at=tx_loss_at,
+            upc_max=upc_max,
+            lat=tx_lat,
+            lon=tx_lon,
+            satellite_lon=sat_longitude,
+            frequency=tx_frequency,
+            polarization=tx_polarization,
+            antenna_diameter=tx_antenna_diameter,
+            elevation=tx_elevation,
+            station_height=station_height,
+            rain_model=rain_model
+        )
+
+        print(f"\n  【功放参数】")
+        print(f"  功放功率: {margin_result['hpa_power_W']:.4f} W ({margin_result['hpa_power_dBW']:.2f} dBW)")
+        print(f"  晴天EIRP: {margin_result['eirp_el_clear_dBW']:.2f} dBW")
+
+        print(f"\n  【UPC余量】")
+        print(f"  UPC余量: {margin_result['upc_margin_dB']:.2f} dB")
+        print(f"  可用UPC: {margin_result['upc_available_dB']:.2f} dB")
+        print(f"  限制因素: {margin_result['upc_limited_by']}")
+
+        print(f"\n  【可达可用度】")
+        print(f"  可达上行可用度: {margin_result['supported_availability']:.4f} %")
+        print(f"  对应不可用度: {margin_result['unavailability']:.4f} %")
+        print(f"  可补偿降雨衰减: {margin_result['compensable_rain_attenuation_dB']:.4f} dB")
+
     # 验证参数
     if not skip_validation:
         if not validate_config(config):
@@ -251,7 +731,8 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str,
         rx_receiver_noise_temp=rx.get('receiver_noise_temp', 75),
 
         # 系统参数
-        availability=system.get('availability', 99.9),
+        uplink_availability=system.get('uplink_availability', 99.9),
+        downlink_availability=system.get('downlink_availability', 99.9),
         rain_model=rain_model,  # 添加降雨模型参数
 
         # 干扰参数（可选）
@@ -264,17 +745,41 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str,
     )
 
     # 显示关键结果
-    print("\n📊 计算结果：")
+    print("\n" + "="*60)
+    print("📊 完整链路计算结果")
+    print("="*60)
     print(f"  符号速率: {result.symbol_rate/1e6:.2f} Msym/s")
     print(f"  带宽占用比: {result.bandwidth_ratio:.2f}%")
     print(f"  仰角: {result.elevation:.2f}°")
     print(f"  晴天系统余量: {result.clear_sky_margin:.2f} dB")
     print(f"  上行降雨余量: {result.uplink_rain_margin:.2f} dB")
     print(f"  下行降雨余量: {result.downlink_rain_margin:.2f} dB")
+    print(f"  晴天功放功率: {result.clear_sky_hpa_power:.4f} W")
+    print(f"  上行雨天功放功率: {result.uplink_rain_hpa_power:.4f} W")
 
     # 生成报告
     print("\n📝 生成报告...")
     success = True
+
+    # 将反向计算结果添加到配置中，供报告生成器使用
+    if reverse_calc_result:
+        config['_reverse_calc_result'] = reverse_calc_result
+
+    # 从result对象中提取反向计算结果（主要计算模式）
+    # 检查result是否有反向计算的字段
+    if hasattr(result, 'calculated_upc_margin') and result.calculated_upc_margin > 0:
+        # 创建反向计算结果字典供报告使用
+        config['_reverse_calc_result'] = {
+            'uplink_rain_attenuation_dB': result.uplink_rain_attenuation,
+            'upc_reserved_dB': result.calculated_upc_margin,
+            'availability': system.get('uplink_availability', 99.9),
+            'unavailability': 100 - system.get('uplink_availability', 99.9),
+            'compensable_rain_attenuation_dB': result.calculated_upc_margin,
+            'required_upc_margin_db': result.calculated_upc_margin,
+            'calculated_hpa_power_clear_W': result.calculated_hpa_power_clear,
+            'calculated_hpa_power_rain_W': result.calculated_hpa_power_rain,
+            'upc_sufficient': result.upc_sufficient,
+        }
 
     if output_format in ['all', 'markdown']:
         md_file = f"{output_prefix}.md"
@@ -288,7 +793,26 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str,
 
     if output_format in ['all', 'json']:
         json_file = f"{output_prefix}.json"
-        JSONExporter.export(config, result, json_file)
+        # 如果有反向计算结果，合并到JSON输出中
+        export_data = {
+            'metadata': {
+                'version': '1.0.0',
+                'timestamp': __import__('datetime').datetime.now().isoformat(),
+                'standard': 'YD/T 2721-2014',
+            },
+            'input_parameters': JSONExporter._convert_params_to_dict(config),
+            'calculation_results': JSONExporter._convert_result_to_dict(result),
+        }
+        if reverse_calc_result:
+            export_data['reverse_calculation'] = reverse_calc_result
+
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump(export_data, f, indent=2, ensure_ascii=False)
+        if print_json:
+            print("\n" + "="*60)
+            print("📄 JSON 输出")
+            print("="*60)
+            print(json.dumps(export_data, indent=2, ensure_ascii=False))
         print(f"  ✅ JSON数据: {json_file}")
 
     if output_format in ['all', 'pdf']:
@@ -403,7 +927,11 @@ def main():
             return
 
         config = load_config(args.config)
-        execute_calculation(config, args.output, args.format, args.no_validate, args.rain_model)
+        execute_calculation(\
+            config, args.output, args.format, getattr(args, 'print_json', False), args.no_validate,\
+            args.rain_model, args.calc_mode, args.upc_reserved,\
+            args.hpa_power, args.station_height\
+        )
 
     elif args.command == 'interactive':
         interactive_mode(args.output, args.format)
