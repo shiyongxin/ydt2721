@@ -343,14 +343,26 @@ class MarkdownReportGenerator:
             section.append(f"- **建议:** 雨天功放功率需要至少 {result.calculated_hpa_power_rain:.4f} W\n")
 
         section.append("\n### 5.3 总体结论\n")
-        if min_margin >= 3 and result.upc_sufficient:
+
+        # 评估系统整体性能
+        # 如果所有余量都是正值，说明系统可用
+        all_positive = all(m >= 0 for m in margins.values())
+        # 如果最小余量>=3，系统性能良好
+        excellent = min_margin >= 3
+        # 如果UPC不满足，需要调整
+        upc_ok = result.upc_sufficient
+
+        if excellent and upc_ok:
             section.append("- **结论:** 系统配置合理，链路性能良好，满足可用度要求 ✅\n")
-        elif min_margin >= 1:
-            section.append("- **结论:** 系统基本满足要求 ⚠️\n")
-            if not result.upc_sufficient:
-                section.append("- **建议:** 需要增加UPC余量和功放功率以满足降雨可用度\n")
-            else:
-                section.append("- **建议:** 可考虑增加天线口径或提高发射功率以增加余量\n")
+        elif all_positive and upc_ok:
+            section.append(f"- **结论:** 系统可用，但{worst_case}余量偏低({min_margin:.2f} dB) ⚠️\n")
+            section.append(f"- **建议:** 可考虑优化{worst_case}链路性能以提高系统余量\n")
+        elif all_positive and not upc_ok:
+            section.append("- **结论:** 系统基本可用，但UPC能力不足 ⚠️\n")
+            section.append(f"- **建议:** 将UPC余量调整为至少 {result.calculated_upc_margin:.2f} dB\n")
+        elif not all_positive:
+            section.append("- **结论:** 系统配置需要调整 ❌\n")
+            section.append("- **建议:** 必须增加UPC余量、功放功率或调整其他参数\n")
         else:
             section.append("- **结论:** 系统配置需要调整 ❌\n")
             section.append("- **建议:** 必须增加UPC余量、功放功率或调整其他参数\n")

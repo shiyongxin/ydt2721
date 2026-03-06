@@ -304,15 +304,32 @@ class PDFReportGenerator:
         contents = []
 
         # 根据余量生成结论
-        min_margin = min(result.clear_sky_margin, result.uplink_rain_margin, result.downlink_rain_margin)
+        margins = {
+            'clear_sky': result.clear_sky_margin,
+            'uplink_rain': result.uplink_rain_margin,
+            'downlink_rain': result.downlink_rain_margin,
+        }
+        min_margin = min(margins.values())
+        worst_case = [k for k, v in margins.items() if v == min_margin][0]
+
+        # 评估系统整体性能
+        all_positive = all(m >= 0 for m in margins.values())
+        excellent = min_margin >= 3
+        upc_ok = result.upc_sufficient
 
         # 系统性能评估
-        if min_margin >= 3:
-            conclusion = "System margin is sufficient ({:.2f} dB), link performance is good.".format(min_margin)
-        elif min_margin >= 1:
-            conclusion = "System margin basically meets requirements ({:.2f} dB). Consider increasing antenna diameter or transmission power.".format(min_margin)
+        if excellent and upc_ok:
+            conclusion = "System configuration is reasonable, link performance is good, and availability requirements are met. Minimum margin: {:.2f} dB ({}).".format(min_margin, worst_case.replace('_', ' ').title())
+        elif all_positive and upc_ok:
+            conclusion = "System is operational, but {} margin is low ({:.2f} dB). Consider optimizing {} link performance to increase margin.".format(
+                worst_case.replace('_', ' ').title(), min_margin, worst_case.replace('_', ' ').title()
+            )
+        elif all_positive and not upc_ok:
+            conclusion = "System is basically available, but UPC capacity is insufficient. Required UPC margin: {:.2f} dB.".format(result.calculated_upc_margin)
+        elif not all_positive:
+            conclusion = "System configuration needs adjustment. Must increase UPC margin, HPA power, or adjust other parameters."
         else:
-            conclusion = "System margin is insufficient ({:.2f} dB). Must increase antenna diameter, improve transmission power, or adjust other parameters.".format(min_margin)
+            conclusion = "System configuration needs adjustment. Must increase UPC margin, HPA power, or adjust other parameters."
 
         contents.append(Paragraph(conclusion, getSampleStyleSheet()['Normal']))
         contents.append(Spacer(1, 0.3*cm))
