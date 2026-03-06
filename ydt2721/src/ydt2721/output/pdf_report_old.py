@@ -303,7 +303,7 @@ class PDFReportGenerator:
             ['载波带宽占用比', f"{result.bandwidth_ratio:.2f}%"],
             ['载波卫星功率占用比', f"{result.clear_sky_power_ratio:.2f}%"],
             ['功放发射功率（晴天）', f"{result.clear_sky_hpa_power:.2f} W"],
-            ['系统余量（晴天）', f"{result.clear_sky_margin:.2f} dB"],
+            ['系统余量（晴天C/N）', f"{result.clear_sky_margin:.2f} dB"],
         ]
 
         table = Table(data, colWidths=[5*cm, 5*cm])

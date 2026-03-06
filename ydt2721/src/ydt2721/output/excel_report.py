@@ -63,9 +63,9 @@ class ExcelReportGenerator:
             ['载波卫星功率占用比', f"{result.clear_sky_power_ratio:.2f}%"],
             ['功放发射功率（晴天）', f"{result.clear_sky_hpa_power:.2f} W"],
             ['功放发射功率（上行降雨）', f"{result.uplink_rain_hpa_power:.2f} W"],
-            ['系统余量（晴天）', f"{result.clear_sky_margin:.2f} dB"],
-            ['系统余量（上行降雨）', f"{result.uplink_rain_margin:.2f} dB"],
-            ['系统余量（下行降雨）', f"{result.downlink_rain_margin:.2f} dB"],
+            ['系统余量（晴天C/N）', f"{result.clear_sky_margin:.2f} dB"],
+            ['系统余量（上行降雨C/N）', f"{result.uplink_rain_margin:.2f} dB"],
+            ['系统余量（下行降雨C/N）', f"{result.downlink_rain_margin:.2f} dB"],
         ]
 
         df = pd.DataFrame(data, columns=['参数', '数值'])

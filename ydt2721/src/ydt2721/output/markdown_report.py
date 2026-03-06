@@ -303,9 +303,9 @@ class MarkdownReportGenerator:
         section.append("- 载波卫星功率占用比: **" + f"{result.clear_sky_power_ratio:.2f}%**\n")
         section.append("- 载波所需地球站功放发射功率（晴天）: **" + f"{result.clear_sky_hpa_power:.2f} W**\n")
         section.append("- 载波所需地球站功放发射功率（上行降雨）: **" + f"{result.uplink_rain_hpa_power:.2f} W**\n")
-        section.append("- 系统余量（晴天）: **" + f"{result.clear_sky_margin:.2f} dB**\n")
-        section.append("- 系统余量（上行降雨）: **" + f"{result.uplink_rain_margin:.2f} dB**\n")
-        section.append("- 系统余量（下行降雨）: **" + f"{result.downlink_rain_margin:.2f} dB**\n")
+        section.append("- 系统余量（晴天C/N）: **" + f"{result.clear_sky_margin:.2f} dB**\n")
+        section.append("- 系统余量（上行降雨C/N）: **" + f"{result.uplink_rain_margin:.2f} dB**\n")
+        section.append("- 系统余量（下行降雨C/N）: **" + f"{result.downlink_rain_margin:.2f} dB**\n")
         section.append("\n")
         return ''.join(section)
 
