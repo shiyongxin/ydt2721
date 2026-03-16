@@ -42,6 +42,7 @@ DEFAULT_PARAMS = {
 BANDS = {
     'C': {'uplink': (5.8, 6.4), 'downlink': (3.4, 4.2)},
     'Ku': {'uplink': (14.0, 14.5), 'downlink': (11.7, 12.75)},
+    'Ka': {'uplink': (27.5, 30.0), 'downlink': (17.7, 20.2)},
 }
 
 # ========== 极化方式代码 ==========

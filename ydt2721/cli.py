@@ -18,6 +18,8 @@ from ydt2721 import (
     ExcelReportGenerator,
     JSONExporter,
     PDFReportGenerator,
+    setup_chinese_fonts,
+    FontManager,
 )
 from ydt2721.core.param_manager import ParameterValidator, ParameterManager
 from ydt2721.core.satellite import calculate_sfd, calculate_antenna_gain_per_area
@@ -101,6 +103,11 @@ def create_parser() -> argparse.ArgumentParser:
   - 简化模型为默认选项，无需额外依赖
   - ITU-Rpy 需要安装: pip install itur
   - 更多信息请参考: ITURPY_SUMMARY.md
+
+字体设置:
+  首次生成PDF报告前，建议运行: ydt2721 font setup
+  这将下载开源中文字体 (Source Han Sans / 思源黑体)
+  字体将保存在用户目录下的 ~/.ydt2721/fonts/
         """
     )
 
@@ -168,6 +175,11 @@ def create_parser() -> argparse.ArgumentParser:
         action='store_true',
         help='在控制台输出JSON结果'
     )
+    calc_parser.add_argument(
+        '--setup-fonts',
+        action='store_true',
+        help='在生成报告前下载中文字体'
+    )
 
     # interactive命令
     interactive_parser = subparsers.add_parser('interactive', help='交互式计算')
@@ -202,6 +214,24 @@ def create_parser() -> argparse.ArgumentParser:
         default='template.json',
         help='输出文件路径（默认: template.json）'
     )
+
+    # font命令
+    font_parser = subparsers.add_parser('font', help='中文字体管理')
+    font_subparsers = font_parser.add_subparsers(dest='font_command', help='字体子命令')
+
+    # font setup命令
+    font_setup_parser = font_subparsers.add_parser('setup', help='下载并设置中文字体')
+    font_setup_parser.add_argument(
+        '--force', '-f',
+        action='store_true',
+        help='强制重新下载字体'
+    )
+
+    # font info命令
+    font_info_parser = font_subparsers.add_parser('info', help='显示字体状态信息')
+
+    # font remove命令
+    font_remove_parser = font_subparsers.add_parser('remove', help='删除已下载的字体文件')
 
     return parser
 
@@ -547,36 +577,6 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str, pr
                        calc_mode: str = 'power', upc_reserved: float = None,
                        hpa_power: float = None, station_height: float = 0.0) -> bool:
     """执行链路计算"""
-def execute_calculation(config: dict, output_prefix: str, output_format: str, print_json: bool = False,
-                       skip_validation: bool = False, rain_model: str = 'simplified',
-                       calc_mode: str = 'power', upc_reserved: float = None,
-                       hpa_power: float = None, station_height: float = 0.0) -> bool:
-    """执行链路计算"""
-def execute_calculation(config: dict, output_prefix: str, output_format: str, print_json: bool = False,
-                       skip_validation: bool = False, rain_model: str = 'simplified',
-                       calc_mode: str = 'power', upc_reserved: float = None,
-                       hpa_power: float = None, station_height: float = 0.0) -> bool:
-    """执行链路计算"""
-def execute_calculation(config: dict, output_prefix: str, output_format: str, print_json: bool = False,
-                       skip_validation: bool = False, rain_model: str = 'simplified',
-                       calc_mode: str = 'power', upc_reserved: float = None,
-                       hpa_power: float = None, station_height: float = 0.0) -> bool:
-    """执行链路计算"""
-def execute_calculation(config: dict, output_prefix: str, output_format: str, print_json: bool = False,
-                       skip_validation: bool = False, rain_model: str = 'simplified',
-                       calc_mode: str = 'power', upc_reserved: float = None,
-                       hpa_power: float = None, station_height: float = 0.0) -> bool:
-    """执行链路计算"""
-def execute_calculation(config: dict, output_prefix: str, output_format: str, print_json: bool = False,
-                       skip_validation: bool = False, rain_model: str = 'simplified',
-                       calc_mode: str = 'power', upc_reserved: float = None,
-                       hpa_power: float = None, station_height: float = 0.0) -> bool:
-    """执行链路计算"""
-def execute_calculation(config: dict, output_prefix: str, output_format: str, print_json: bool = False,
-                       skip_validation: bool = False, rain_model: str = 'simplified',
-                       calc_mode: str = 'power', upc_reserved: float = None,
-                       hpa_power: float = None, station_height: float = 0.0) -> bool:
-    """执行链路计算"""
     config = json.loads(json.dumps(config))
 
     # 参数覆盖：--upc-reserved 覆盖配置文件中的 upc_max_comp
@@ -912,6 +912,13 @@ def interactive_mode(output_prefix: str, output_format: str):
 
 def main():
     """主函数"""
+    # 修复Windows控制台编码问题
+    import sys
+    if sys.platform == 'win32':
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
     parser = create_parser()
     args = parser.parse_args()
 
@@ -921,6 +928,16 @@ def main():
 
     # 执行命令
     if args.command == 'calculate':
+        # 检查是否需要设置字体
+        if getattr(args, 'setup_fonts', False) or args.format in ['all', 'pdf']:
+            # 检查是否有可用字体
+            info = FontManager.get_font_info()
+            has_downloaded = any(f['exists'] and f['valid'] for f in info['downloaded_fonts'])
+            if not has_downloaded and not (info['system_fonts']['normal'] or info['system_fonts']['bold']):
+                print("⚠️  未找到可用的中文字体")
+                print("📥 正在下载开源中文字体...")
+                setup_chinese_fonts()
+
         if not args.config:
             print("❌ 请指定配置文件 (--config)")
             print("💡 使用 'ydt2721 template' 生成配置模板")
@@ -942,6 +959,34 @@ def main():
 
     elif args.command == 'template':
         generate_template(args.output)
+
+    elif args.command == 'font':
+        if args.font_command == 'setup':
+            setup_chinese_fonts(force=getattr(args, 'force', False))
+        elif args.font_command == 'info':
+            info = FontManager.get_font_info()
+            print("\n" + "="*50)
+            print("YDT 2721 中文字体状态")
+            print("="*50)
+            print(f"\n系统: {info['system']}")
+            print(f"字体目录: {info['font_dir']}")
+            print(f"\n系统字体:")
+            print(f"  普通: {'✓' if info['system_fonts']['normal'] else '✗'}")
+            print(f"  粗体: {'✓' if info['system_fonts']['bold'] else '✗'}")
+            print(f"\n已下载字体:")
+            for font in info['downloaded_fonts']:
+                status = "✓" if font['valid'] else ("✗" if font['exists'] else "?")
+                print(f"  {status} {font['key']}")
+                if font['exists']:
+                    print(f"     路径: {font['path']}")
+            print()
+        elif args.font_command == 'remove':
+            if FontManager.remove_downloaded_fonts():
+                print("✅ 已删除下载的字体文件")
+            else:
+                print("❌ 删除失败")
+        else:
+            font_parser.print_help()
 
 
 if __name__ == '__main__':

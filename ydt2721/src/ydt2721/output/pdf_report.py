@@ -9,9 +9,11 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
-import os
+from pathlib import Path
+
+from .font_manager import FontManager, setup_chinese_fonts
 
 
 class PDFReportGenerator:
@@ -31,77 +33,63 @@ class PDFReportGenerator:
 
     # 注册中文字体
     @staticmethod
-    def _register_chinese_fonts():
-        """注册中文字体"""
+    def _register_chinese_fonts() -> Optional[str]:
+        """
+        注册中文字体
+
+        使用 FontManager 获取字体路径，支持:
+        1. 已下载的开源字体 (Source Han Sans / 思源黑体)
+        2. 系统自带的中文字体
+        """
         try:
-            # macOS 系统自带的中文字体
-            font_paths = [
-                ('/System/Library/Fonts/PingFang.ttc', 'PingFang-SC-Regular', 'PingFang SC'),
-                ('/System/Library/Fonts/STHeiti Light.ttc', 'STHeiti-Light', 'STHeiti Light'),
-                ('/System/Library/Fonts/STSong.ttf', 'STSong', 'STSong'),
-            ]
+            font_info = FontManager.get_font_path('normal')
+            if font_info is None:
+                print("⚠️ 未找到可用的中文字体")
+                return None
 
-            for font_path, font_name, display_name in font_paths:
-                if os.path.exists(font_path):
-                    try:
-                        # 对于 TTC 字体文件，需要指定子字体
-                        if font_path.endswith('.ttc'):
-                            pdfmetrics.registerFont(TTFont(font_name, font_path, subfontIndex=0))
-                        else:
-                            pdfmetrics.registerFont(TTFont(font_name, font_path))
-                        print(f"✅ 已注册中文字体: {display_name}")
-                        return font_name
-                    except Exception as e:
-                        print(f"⚠️ 注册字体失败 {display_name}: {e}")
-                        continue
+            font_path, subfont_index = font_info
 
-            # 如果系统字体都失败，尝试使用字体包
-            print("⚠️ 系统中文字体注册失败，尝试使用字体包...")
-            return PDFReportGenerator._register_package_fonts()
+            # 生成字体注册名称
+            if subfont_index is not None:
+                register_name = f'ChineseFont_Normal_{subfont_index}'
+                pdfmetrics.registerFont(TTFont(register_name, font_path, subfontIndex=subfont_index))
+            else:
+                register_name = 'ChineseFont_Normal'
+                pdfmetrics.registerFont(TTFont(register_name, font_path))
+
+            print(f"✅ 已注册中文字体: {Path(font_path).name}")
+            return register_name
 
         except Exception as e:
             print(f"⚠️ 中文字体注册失败: {e}")
             return None
 
     @staticmethod
-    def _register_package_fonts():
-        """注册字体包中的中文字体"""
+    def _register_chinese_fonts_bold() -> Optional[str]:
+        """
+        注册中文字体（粗体）
+
+        使用 FontManager 获取粗体字体路径
+        """
         try:
-            # 检查是否有 reportlab-fonts 包中的中文字体
-            # 这里使用一个简单的解决方案：如果系统字体不可用，使用 helvetica 并在标签中使用英文
-            # 用户可以安装 reportlab-fonts 包或下载中文字体文件
-            print("提示：要支持中文，请安装中文字体文件到项目目录")
-            return None
-        except Exception as e:
-            print(f"⚠️ 字体包注册失败: {e}")
-            return None
+            font_info = FontManager.get_font_path('bold')
+            if font_info is None:
+                # 回退到普通字体
+                print("⚠️ 未找到粗体中文字体，使用普通字体")
+                return PDFReportGenerator.get_chinese_font()
 
-    @staticmethod
-    def _register_chinese_fonts_bold():
-        """注册中文字体（粗体）"""
-        try:
-            # 尝试查找粗体字体
-            font_paths = [
-                ('/System/Library/Fonts/PingFang.ttc', 'PingFang-SC-Medium', 'PingFang SC Medium'),
-                ('/System/Library/Fonts/STHeiti Medium.ttc', 'STHeiti-Medium', 'STHeiti Medium'),
-                ('/System/Library/Fonts/STHeiti.ttc', 'STHeiti', 'STHeiti Bold'),
-            ]
+            font_path, subfont_index = font_info
 
-            for font_path, font_name, display_name in font_paths:
-                if os.path.exists(font_path):
-                    try:
-                        # 对于 TTC 字体文件，需要指定子字体索引
-                        subfont_index = 1 if 'Medium' in display_name else 0
-                        pdfmetrics.registerFont(TTFont(font_name, font_path, subfontIndex=subfont_index))
-                        print(f"✅ 已注册中文字体（粗体）: {display_name}")
-                        return font_name
-                    except Exception as e:
-                        print(f"⚠️ 注册字体失败 {display_name}: {e}")
-                        continue
+            # 生成字体注册名称
+            if subfont_index is not None:
+                register_name = f'ChineseFont_Bold_{subfont_index}'
+                pdfmetrics.registerFont(TTFont(register_name, font_path, subfontIndex=subfont_index))
+            else:
+                register_name = 'ChineseFont_Bold'
+                pdfmetrics.registerFont(TTFont(register_name, font_path))
 
-            # 如果找不到粗体字体，返回普通字体
-            print("⚠️ 未找到中文字体粗体版本，使用普通字体")
-            return PDFReportGenerator.get_chinese_font()
+            print(f"✅ 已注册中文字体（粗体）: {Path(font_path).name}")
+            return register_name
 
         except Exception as e:
             print(f"⚠️ 中文字体（粗体）注册失败: {e}")

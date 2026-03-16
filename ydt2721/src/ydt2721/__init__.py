@@ -14,6 +14,8 @@ from .output import (
     ExcelReportGenerator,
     JSONExporter,
     PDFReportGenerator,
+    setup_chinese_fonts,
+    FontManager,
 )
 
 __all__ = [
@@ -23,4 +25,6 @@ __all__ = [
     "ExcelReportGenerator",
     "JSONExporter",
     "PDFReportGenerator",
+    "setup_chinese_fonts",
+    "FontManager",
 ]
