@@ -75,7 +75,7 @@ class ITURainCalculator:
             (总衰减, 分量字典)
         """
         # 转换为超时概率
-        p = (100 - availability) / 100
+        p = 100 - availability # 转换为不可用性百分比
 
         # 计算总大气衰减
         if return_contributions:
@@ -122,7 +122,7 @@ class ITURainCalculator:
         Returns:
             降雨衰减（dB）
         """
-        p = (100 - availability) / 100
+        p = 100 - availability  # 转换为不可用性百分比
 
         Ar = itur.rain_attenuation(
             lat=self.lat,
@@ -156,7 +156,7 @@ class ITURainCalculator:
         """
         # 使用自动计算的大气参数（如果未提供）
         if rho is None or P is None or T is None:
-            p = (100 - availability) / 100
+            p = 100 - availability  # 转换为不可用性百分比
             rho_p = itur.surface_water_vapour_density(
                 self.lat, self.lon, p, self.station_height
             )
@@ -190,7 +190,7 @@ class ITURainCalculator:
         Returns:
             云衰减（dB）
         """
-        p = (100 - availability) / 100
+        p = 100 - availability  # 转换为不可用性百分比
 
         Ac = itur.cloud_attenuation(
             lat=self.lat,
@@ -215,7 +215,7 @@ class ITURainCalculator:
         Returns:
             闪烁衰减（dB）
         """
-        p = (100 - availability) / 100
+        p = 100 - availability  # 转换为不可用性百分比
 
         As = itur.scintillation_attenuation(
             lat=self.lat,
@@ -258,7 +258,7 @@ class ITURainCalculator:
         Returns:
             大气参数字典
         """
-        p = (100 - availability) / 100
+        p = 100 - availability  # 转换为不可用性百分比
 
         # 计算各种大气参数
         hs = itur.topographic_altitude(self.lat, self.lon)
