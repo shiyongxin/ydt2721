@@ -4,8 +4,7 @@
 
 import math
 from typing import Dict, Optional, Tuple
-from .space_loss import calculate_rain_attenuation
-from .itu_rain_wrapper import calculate_rain_attenuation_iturpy, ITURPY_AVAILABLE
+from .itu_rain_wrapper import calculate_rain_attenuation_iturpy
 
 
 def invert_availability_from_rain_attenuation(
@@ -18,7 +17,7 @@ def invert_availability_from_rain_attenuation(
     antenna_diameter: float,
     elevation: float,
     station_height: float = 0.0,
-    rain_model: str = 'simplified'
+    rain_model: str = 'iturpy'
 ) -> Tuple[float, Dict]:
     """
     根据目标降雨衰减反推可用度（使用二分查找）
@@ -33,7 +32,7 @@ def invert_availability_from_rain_attenuation(
         antenna_diameter: 天线直径 (m)
         elevation: 仰角 (度)
         station_height: 站高度 (km)
-        rain_model: 降雨模型 ('simplified' 或 'iturpy')
+        rain_model: 降雨模型 ('iturpy')
 
     Returns:
         (可用度%, 详细信息)
@@ -48,30 +47,19 @@ def invert_availability_from_rain_attenuation(
     for _ in range(max_iterations):
         mid_avail = (low_avail + high_avail) / 2
 
-        # 计算当前可用度对应的降雨衰减
-        if rain_model == 'iturpy' and ITURPY_AVAILABLE:
-            try:
-                result = calculate_rain_attenuation_iturpy(
-                    lat=lat,
-                    lon=lon,
-                    satellite_lon=satellite_lon,
-                    frequency=frequency,
-                    polarization=polarization,
-                    antenna_diameter=antenna_diameter,
-                    availability=mid_avail,
-                    station_height=station_height,
-                    elevation=elevation
-                )
-                current_rain_att = result['rain_attenuation_dB']
-            except Exception:
-                # 回退到简化模型
-                current_rain_att = calculate_rain_attenuation(
-                    mid_avail, frequency, elevation, lat, polarization
-                )
-        else:
-            current_rain_att = calculate_rain_attenuation(
-                mid_avail, frequency, elevation, lat, polarization
-            )
+        # 计算当前可用度对应的降雨衰减 (使用 ITU-Rpy)
+        result = calculate_rain_attenuation_iturpy(
+            lat=lat,
+            lon=lon,
+            satellite_lon=satellite_lon,
+            frequency=frequency,
+            polarization=polarization,
+            antenna_diameter=antenna_diameter,
+            availability=mid_avail,
+            station_height=station_height,
+            elevation=elevation
+        )
+        current_rain_att = result['rain_attenuation_dB']
 
         # 二分查找逻辑
         # 可用度越高 → 降雨衰减越大
@@ -151,7 +139,7 @@ def calculate_required_hpa_for_availability(
     elevation: float,
     station_height: float = 0.0,
     upc_max: float = 5.0,
-    rain_model: str = 'simplified'
+    rain_model: str = 'iturpy'
 ) -> Dict[str, float]:
     """
     计算满足目标可用度所需的功放参数
@@ -165,29 +153,19 @@ def calculate_required_hpa_for_availability(
     Returns:
         功放参数需求
     """
-    # 计算目标可用度对应的降雨衰减
-    if rain_model == 'iturpy' and ITURPY_AVAILABLE:
-        try:
-            result = calculate_rain_attenuation_iturpy(
-                lat=lat,
-                lon=lon,
-                satellite_lon=satellite_lon,
-                frequency=frequency,
-                polarization=polarization,
-                antenna_diameter=antenna_diameter,
-                availability=target_availability,
-                station_height=station_height,
-                elevation=elevation
-            )
-            rain_att = result['rain_attenuation_dB']
-        except Exception:
-            rain_att = calculate_rain_attenuation(
-                target_availability, frequency, elevation, lat, polarization
-            )
-    else:
-        rain_att = calculate_rain_attenuation(
-            target_availability, frequency, elevation, lat, polarization
-        )
+    # 计算目标可用度对应的降雨衰减 (使用 ITU-Rpy)
+    result = calculate_rain_attenuation_iturpy(
+        lat=lat,
+        lon=lon,
+        satellite_lon=satellite_lon,
+        frequency=frequency,
+        polarization=polarization,
+        antenna_diameter=antenna_diameter,
+        availability=target_availability,
+        station_height=station_height,
+        elevation=elevation
+    )
+    rain_att = result['rain_attenuation_dB']
 
     # UPC 补偿量
     upc_used = min(rain_att, upc_max)
@@ -232,7 +210,7 @@ def analyze_power_margin(
     antenna_diameter: float,
     elevation: float,
     station_height: float = 0.0,
-    rain_model: str = 'simplified'
+    rain_model: str = 'iturpy'
 ) -> Dict[str, float]:
     """
     分析给定功放功率可支持的可用度范围

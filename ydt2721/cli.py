@@ -57,13 +57,6 @@ def create_parser() -> argparse.ArgumentParser:
   # 验证参数
   %(prog)s validate --config params.json
 
-降雨衰减模型:
-  --rain-model simplified
-    使用简化模型计算降雨衰减（速度快，适合初步设计）
-
-  --rain-model iturpy
-    使用 ITU-Rpy 完整标准计算（高精度，包含气体、云、闪烁衰减）
-
 计算模式:
   --calc-mode power
     根据可用度需求计算所需功放功率（默认模式）
@@ -79,28 +72,19 @@ def create_parser() -> argparse.ArgumentParser:
     指定功放功率 (W)，分析给定功放可支持的可用度
     可与 power 或 availability 模式配合使用
 
-模型对比:
-  简化模型:
-    - 计算速度: < 1ms
-    - 精度: ±50%%
-    - 功能: 仅降雨衰减
-    - 依赖: 无
-
-  ITU-Rpy:
-    - 计算速度: ~5ms
-    - 精度: ±10%%
-    - 功能: 气体 + 云 + 降雨 + 闪烁衰减
-    - 依赖: itur, numpy, scipy, pyproj, astropy
+降雨衰减模型:
+  使用 ITU-Rpy 完整标准计算（高精度，包含气体、云、闪烁衰减）
+  - 计算速度: ~5ms
+  - 精度: ±10%%
+  - 功能: 气体 + 云 + 降雨 + 闪烁衰减
+  - 依赖: itur, numpy, scipy, pyproj, astropy
 
 推荐使用场景:
-  - 快速原型设计: simplified
-  - 初步设计评估: simplified
-  - 精确工程计算: iturpy
-  - 商用链路设计: iturpy + 专业软件验证
-  - 正式报告生成: iturpy
+  - 精确工程计算
+  - 商用链路设计
+  - 正式报告生成
 
 注意:
-  - 简化模型为默认选项，无需额外依赖
   - ITU-Rpy 需要安装: pip install itur
   - 更多信息请参考: ITURPY_SUMMARY.md
 
@@ -137,13 +121,6 @@ def create_parser() -> argparse.ArgumentParser:
         '--no-validate',
         action='store_true',
         help='跳过参数验证'
-    )
-    calc_parser.add_argument(
-        '--rain-model',
-        type=str,
-        choices=['simplified', 'iturpy'],
-        default='simplified',
-        help='降雨衰减计算模型 (默认: simplified)'
     )
     calc_parser.add_argument(
         '--calc-mode',
@@ -273,8 +250,7 @@ def validate_config(config: dict) -> bool:
 
 
 def execute_reverse_calculation(config: dict, output_prefix: str, output_format: str,
-                                 upc_reserved: float, rain_model: str = 'simplified',
-                                 station_height: float = 0.0) -> bool:
+                                 upc_reserved: float, station_height: float = 0.0) -> bool:
     """执行反向计算：根据UPC补偿量计算可达可用度"""
     # 提取参数
     sat = config.get('satellite', {})
@@ -307,15 +283,15 @@ def execute_reverse_calculation(config: dict, output_prefix: str, output_format:
     uplink_loss = calculate_free_space_loss(tx_frequency * 1e3, tx_distance)
 
     # 根据预留UPC反推可用度
-    print("\n🔧 正在执行反向计算...")
-    print(f"📊 计算模式: 根据UPC补偿量计算可用度")
-    print(f"📊 降雨衰减模型: {rain_model}")
-    print(f"🔧 预留UPC补偿量: {upc_reserved} dB")
+    print("\n正在执行反向计算...")
+    print(f"计算模式: 根据UPC补偿量计算可用度")
+    print(f"降雨衰减模型: ITU-Rpy")
+    print(f"预留UPC补偿量: {upc_reserved} dB")
 
     # 计算雨天可补偿的降雨衰减
     upc_max = tx.get('upc_max_comp', 5.0)
     if upc_reserved > upc_max:
-        print(f"⚠️  警告: 预留UPC ({upc_reserved} dB) 超过最大UPC ({upc_max} dB)")
+        print(f"警告: 预留UPC ({upc_reserved} dB) 超过最大UPC ({upc_max} dB)")
         print(f"   实际可用的UPC补偿量: {upc_max} dB")
         upc_reserved = upc_max
 
@@ -333,7 +309,7 @@ def execute_reverse_calculation(config: dict, output_prefix: str, output_format:
         antenna_diameter=tx_antenna_diameter,
         elevation=tx_elevation,
         station_height=station_height,
-        rain_model=rain_model
+        rain_model='iturpy'
     )
 
     # 计算功放参数需求
@@ -382,7 +358,7 @@ def execute_reverse_calculation(config: dict, output_prefix: str, output_format:
     if output_format in ['all', 'json']:
         result = {
             'calculation_mode': 'availability_from_upc',
-            'rain_model': rain_model,
+            'rain_model': 'iturpy',
             'upc_reserved_dB': upc_reserved,
             'availability': {
                 'uplink': availability,
@@ -415,8 +391,7 @@ def execute_reverse_calculation(config: dict, output_prefix: str, output_format:
 
 
 def execute_power_margin_analysis(config: dict, output_prefix: str,
-                                    hpa_power_w: float, rain_model: str = 'simplified',
-                                    station_height: float = 0.0) -> bool:
+                                    hpa_power_w: float, station_height: float = 0.0) -> bool:
     """分析给定功放功率可支持的可用度"""
     # 提取参数
     sat = config.get('satellite', {})
@@ -453,9 +428,9 @@ def execute_power_margin_analysis(config: dict, output_prefix: str,
     tx_wavelength = LIGHT_SPEED / (tx_frequency * 1e9)
     tx_antenna_gain = calculate_antenna_gain(tx_antenna_diameter, tx_wavelength, tx_efficiency)
 
-    print("\n🔧 正在分析功放功率余量...")
-    print(f"📊 降雨衰减模型: {rain_model}")
-    print(f"🔧 指定功放功率: {hpa_power_w:.4f} W")
+    print("\n正在分析功放功率余量...")
+    print(f"降雨衰减模型: ITU-Rpy")
+    print(f"指定功放功率: {hpa_power_w:.4f} W")
 
     # 分析功放余量
     result = analyze_power_margin(
@@ -476,7 +451,7 @@ def execute_power_margin_analysis(config: dict, output_prefix: str,
         antenna_diameter=tx_antenna_diameter,
         elevation=tx_elevation,
         station_height=station_height,
-        rain_model=rain_model
+        rain_model='iturpy'
     )
 
     # 显示结果
@@ -507,7 +482,7 @@ def execute_power_margin_analysis(config: dict, output_prefix: str,
 
 
 def execute_reverse_calculation_inline(config: dict, upc_reserved: float,
-                                         rain_model: str, station_height: float) -> dict:
+                                         station_height: float) -> dict:
     """执行反向计算（内联版本，返回结果字典）"""
     sat = config.get('satellite', {})
     tx = config.get('tx_station', {})
@@ -532,10 +507,10 @@ def execute_reverse_calculation_inline(config: dict, upc_reserved: float,
     uplink_loss = calculate_free_space_loss(tx_frequency * 1e3, tx_distance)
 
     print("\n" + "="*60)
-    print("🔧 反向计算：根据UPC补偿量计算可达可用度")
+    print("反向计算：根据UPC补偿量计算可达可用度")
     print("="*60)
-    print(f"📊 降雨衰减模型: {rain_model}")
-    print(f"🔧 预留UPC补偿量: {upc_reserved} dB")
+    print(f"降雨衰减模型: ITU-Rpy")
+    print(f"预留UPC补偿量: {upc_reserved} dB")
 
     upc_max = tx.get('upc_max_comp', 5.0)
     if upc_reserved > upc_max:
@@ -555,7 +530,7 @@ def execute_reverse_calculation_inline(config: dict, upc_reserved: float,
         antenna_diameter=tx_antenna_diameter,
         elevation=tx_elevation,
         station_height=station_height,
-        rain_model=rain_model
+        rain_model='iturpy'
     )
 
     print(f"\n  【可用度分析】")
@@ -573,7 +548,7 @@ def execute_reverse_calculation_inline(config: dict, upc_reserved: float,
 
 
 def execute_calculation(config: dict, output_prefix: str, output_format: str, print_json: bool = False,
-                       skip_validation: bool = False, rain_model: str = 'simplified',
+                       skip_validation: bool = False,
                        calc_mode: str = 'power', upc_reserved: float = None,
                        hpa_power: float = None, station_height: float = 0.0) -> bool:
     """执行链路计算"""
@@ -591,7 +566,7 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str, pr
     # 处理 availability 计算模式
     if calc_mode == 'availability' and upc_reserved is not None:
         reverse_calc_result = execute_reverse_calculation_inline(
-            config, upc_reserved, rain_model, station_height
+            config, upc_reserved, station_height
         )
         # 将计算出的可用度更新到配置中
         if 'system' not in config:
@@ -652,7 +627,7 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str, pr
             antenna_diameter=tx_antenna_diameter,
             elevation=tx_elevation,
             station_height=station_height,
-            rain_model=rain_model
+            rain_model='iturpy'
         )
 
         print(f"\n  【功放参数】")
@@ -683,8 +658,8 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str, pr
     interference = config.get('interference', {})
 
     # 执行计算
-    print("\n🔧 正在执行链路计算...")
-    print(f"📊 降雨衰减模型: {rain_model}")
+    print("\n正在执行链路计算...")
+    print(f"降雨衰减模型: ITU-Rpy")
     result = complete_link_budget(
         # 卫星参数
         sat_longitude=sat.get('longitude', 0),
@@ -733,7 +708,7 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str, pr
         # 系统参数
         uplink_availability=system.get('uplink_availability', 99.9),
         downlink_availability=system.get('downlink_availability', 99.9),
-        rain_model=rain_model,  # 添加降雨模型参数
+        rain_model='iturpy',  # ITU-Rpy 模型
 
         # 干扰参数（可选）
         ci0_im=interference.get('ci0_im'),
@@ -944,10 +919,10 @@ def main():
             return
 
         config = load_config(args.config)
-        execute_calculation(\
-            config, args.output, args.format, getattr(args, 'print_json', False), args.no_validate,\
-            args.rain_model, args.calc_mode, args.upc_reserved,\
-            args.hpa_power, args.station_height\
+        execute_calculation(
+            config, args.output, args.format, getattr(args, 'print_json', False), args.no_validate,
+            args.calc_mode, args.upc_reserved,
+            args.hpa_power, args.station_height
         )
 
     elif args.command == 'interactive':

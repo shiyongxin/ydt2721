@@ -93,7 +93,7 @@ class LinkBudgetResult:
     downlink_loss: float = 0
 
     # 降雨模型信息
-    rain_model: str = 'simplified'  # 使用的降雨模型
+    rain_model: str = 'iturpy'  # 使用的降雨模型
 
     # 降雨衰减分量（ITU-Rpy）
     tx_gas_attenuation: float = 0  # 上行气体衰减

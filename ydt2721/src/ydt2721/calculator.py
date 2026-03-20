@@ -23,8 +23,6 @@ from .core.earth_station import (
 )
 from .core.space_loss import (
     calculate_free_space_loss,
-    calculate_rain_attenuation,
-    calculate_rain_attenuation_with_model,
     calculate_rain_noise_temp,
     calculate_gt_degradation,
 )
@@ -185,7 +183,7 @@ def complete_link_budget(
     # 系统参数
     uplink_availability: float,  # 上行链路可用度 (%)
     downlink_availability: float,  # 下行链路可用度 (%)
-    rain_model: str = 'simplified',  # 降雨模型：'simplified' 或 'iturpy'
+    rain_model: str = 'iturpy',  # 降雨模型：仅支持 'iturpy'
 
     # 干扰参数（可选）
     ci0_im: float = None,
@@ -261,92 +259,54 @@ def complete_link_budget(
     uplink_loss = calculate_free_space_loss(tx_frequency * 1e3, tx_distance)
     downlink_loss = calculate_free_space_loss(rx_frequency * 1e3, rx_distance)
 
-    # 降雨衰减（根据选择的模型）
-    if rain_model == 'iturpy':
-        try:
-            from .core.itu_rain_wrapper import calculate_rain_attenuation_iturpy
+    # 降雨衰减（使用 ITU-Rpy）
+    from .core.itu_rain_wrapper import calculate_rain_attenuation_iturpy
 
-            # 上行降雨衰减（ITU-Rpy）
-            tx_rain_result = calculate_rain_attenuation_iturpy(
-                lat=tx_lat,
-                lon=tx_lon,
-                satellite_lon=sat_longitude,
-                frequency=tx_frequency,
-                polarization=tx_polarization,
-                antenna_diameter=tx_antenna_diameter,
-                availability=uplink_availability,
-                station_height=0.0,  # 可以从参数中获取
-                elevation=tx_elevation
-            )
-            uplink_rain_att = tx_rain_result['rain_attenuation_dB']
+    # 上行降雨衰减（ITU-Rpy）
+    tx_rain_result = calculate_rain_attenuation_iturpy(
+        lat=tx_lat,
+        lon=tx_lon,
+        satellite_lon=sat_longitude,
+        frequency=tx_frequency,
+        polarization=tx_polarization,
+        antenna_diameter=tx_antenna_diameter,
+        availability=uplink_availability,
+        station_height=0.0,  # 可以从参数中获取
+        elevation=tx_elevation
+    )
+    uplink_rain_att = tx_rain_result['rain_attenuation_dB']
 
-            # 下行降雨衰减（ITU-Rpy）
-            rx_rain_result = calculate_rain_attenuation_iturpy(
-                lat=rx_lat,
-                lon=rx_lon,
-                satellite_lon=sat_longitude,
-                frequency=rx_frequency,
-                polarization=rx_polarization,
-                antenna_diameter=rx_antenna_diameter,
-                availability=downlink_availability,
-                station_height=0.0,  # 可以从参数中获取
-                elevation=rx_elevation
-            )
-            downlink_rain_att = rx_rain_result['rain_attenuation_dB']
-            rain_noise_temp = rx_rain_result['rain_noise_temp_K']
+    # 下行降雨衰减（ITU-Rpy）
+    rx_rain_result = calculate_rain_attenuation_iturpy(
+        lat=rx_lat,
+        lon=rx_lon,
+        satellite_lon=sat_longitude,
+        frequency=rx_frequency,
+        polarization=rx_polarization,
+        antenna_diameter=rx_antenna_diameter,
+        availability=downlink_availability,
+        station_height=0.0,  # 可以从参数中获取
+        elevation=rx_elevation
+    )
+    downlink_rain_att = rx_rain_result['rain_attenuation_dB']
+    rain_noise_temp = rx_rain_result['rain_noise_temp_K']
 
-            # 保存ITU-Rpy的额外衰减分量
-            result.tx_gas_attenuation = tx_rain_result.get('gas_attenuation_dB', 0)
-            result.tx_cloud_attenuation = tx_rain_result.get('cloud_attenuation_dB', 0)
-            result.tx_scintillation_attenuation = tx_rain_result.get('scintillation_attenuation_dB', 0)
-            result.rx_gas_attenuation = rx_rain_result.get('gas_attenuation_dB', 0)
-            result.rx_cloud_attenuation = rx_rain_result.get('cloud_attenuation_dB', 0)
-            result.rx_scintillation_attenuation = rx_rain_result.get('scintillation_attenuation_dB', 0)
+    # 保存ITU-Rpy的额外衰减分量
+    result.tx_gas_attenuation = tx_rain_result.get('gas_attenuation_dB', 0)
+    result.tx_cloud_attenuation = tx_rain_result.get('cloud_attenuation_dB', 0)
+    result.tx_scintillation_attenuation = tx_rain_result.get('scintillation_attenuation_dB', 0)
+    result.rx_gas_attenuation = rx_rain_result.get('gas_attenuation_dB', 0)
+    result.rx_cloud_attenuation = rx_rain_result.get('cloud_attenuation_dB', 0)
+    result.rx_scintillation_attenuation = rx_rain_result.get('scintillation_attenuation_dB', 0)
 
-            # 计算G/T下降
-            rx_feed_loss_linear = 10 ** (rx_feed_loss / 10)
-            rx_system_noise_temp = (rx_antenna_noise_temp / rx_feed_loss_linear +
-                                     (1 - 1 / rx_feed_loss_linear) * 290 +
-                                     rx_receiver_noise_temp)
-            gt_degradation = calculate_gt_degradation(
-                rain_noise_temp, rx_feed_loss, rx_system_noise_temp
-            )
-
-        except ImportError:
-            print("Warning: ITU-Rpy not installed, falling back to simplified model")
-            # 回退到简化模型
-            uplink_rain_att = calculate_rain_attenuation(
-                uplink_availability, tx_frequency, tx_elevation, tx_lat, tx_polarization
-            )
-            downlink_rain_att = calculate_rain_attenuation(
-                downlink_availability, rx_frequency, rx_elevation, rx_lat, rx_polarization
-            )
-            rain_noise_temp = calculate_rain_noise_temp(downlink_rain_att)
-            rx_feed_loss_linear = 10 ** (rx_feed_loss / 10)
-            rx_system_noise_temp = (rx_antenna_noise_temp / rx_feed_loss_linear +
-                                     (1 - 1 / rx_feed_loss_linear) * 290 +
-                                     rx_receiver_noise_temp)
-            gt_degradation = calculate_gt_degradation(
-                rain_noise_temp, rx_feed_loss, rx_system_noise_temp
-            )
-    else:
-        # 使用简化模型（默认）
-        uplink_rain_att = calculate_rain_attenuation(
-            uplink_availability, tx_frequency, tx_elevation, tx_lat, tx_polarization
-        )
-        downlink_rain_att = calculate_rain_attenuation(
-            downlink_availability, rx_frequency, rx_elevation, rx_lat, rx_polarization
-        )
-
-        # 降雨噪声温度和G/T下降
-        rain_noise_temp = calculate_rain_noise_temp(downlink_rain_att)
-        rx_feed_loss_linear = 10 ** (rx_feed_loss / 10)
-        rx_system_noise_temp = (rx_antenna_noise_temp / rx_feed_loss_linear +
-                                 (1 - 1 / rx_feed_loss_linear) * 290 +
-                                 rx_receiver_noise_temp)
-        gt_degradation = calculate_gt_degradation(
-            rain_noise_temp, rx_feed_loss, rx_system_noise_temp
-        )
+    # 计算G/T下降
+    rx_feed_loss_linear = 10 ** (rx_feed_loss / 10)
+    rx_system_noise_temp = (rx_antenna_noise_temp / rx_feed_loss_linear +
+                             (1 - 1 / rx_feed_loss_linear) * 290 +
+                             rx_receiver_noise_temp)
+    gt_degradation = calculate_gt_degradation(
+        rain_noise_temp, rx_feed_loss, rx_system_noise_temp
+    )
 
     result.uplink_loss = uplink_loss
     result.downlink_loss = downlink_loss
