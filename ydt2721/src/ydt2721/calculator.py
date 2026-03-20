@@ -318,7 +318,7 @@ def complete_link_budget(
     # ========== 4.5 卫星功率分配（需要在反向计算之前完成）==========
     # 注意：必须先计算卫星功率分配，得到实际的bo_il值
     eirp_sl, pfd, bo_il, bo_ol = calculate_satellite_power_allocation(
-        sat_eirp_ss, sat_bo_o, sat_sfd, bw_ratio / 100
+        sat_eirp_ss, sat_bo_o, sat_sfd, bw_ratio / 100, sat_bo_i
     )
     result.satellite_eirp = eirp_sl
     result.pfd = pfd

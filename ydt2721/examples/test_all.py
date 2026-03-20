@@ -91,7 +91,8 @@ def test_satellite_power_allocation():
         eirp_ss=48.48,
         bo_o=3,
         sfd=-89.96,
-        bandwidth_ratio=0.0346
+        bandwidth_ratio=0.0346,
+        bo_i=6
     )
     print(f"✅ 卫星载波EIRP: {eirp_sl:.2f} dBW")
     print(f"✅ 卫星PFD: {pfd:.2f} dB(W/m²)")

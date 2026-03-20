@@ -8,7 +8,7 @@ from .constants import BOLTZMANN_CONSTANT_DB
 
 def calculate_satellite_power_allocation(
         eirp_ss: float, bo_o: float, sfd: float,
-        bandwidth_ratio: float) -> tuple:
+        bandwidth_ratio: float, bo_i: float) -> tuple:
     """
     计算卫星功率分配
 
@@ -17,19 +17,20 @@ def calculate_satellite_power_allocation(
         bo_o: 转发器输出回退, 单位dB
         sfd: 卫星SFD, 单位dB(W/m²)
         bandwidth_ratio: 带宽占用比, 小数形式
+        bo_i: 转发器输入回退, 单位dB
 
     Returns:
         (载波EIRP, PFD, 输入回退, 输出回退)
 
     Example:
-        >>> calculate_satellite_power_allocation(48.48, 3, -89.96, 0.0346)
-        (27.19, -114.25, 24.29, 21.29)
+        >>> calculate_satellite_power_allocation(48.48, 3, -89.96, 0.0346, 6)
+        (27.19, -120.25, 30.29, 21.29)
     """
     # 计算载波EIRP
     eirp_sl = eirp_ss - bo_o + 10 * math.log10(bandwidth_ratio)
 
-    # 计算PFD
-    pfd = sfd - (eirp_ss - bo_o - eirp_sl)
+    # 计算PFD (新增bo_i参数)
+    pfd = sfd - bo_i - (eirp_ss - bo_o - eirp_sl)
 
     # 计算回退
     bo_il = sfd - pfd
