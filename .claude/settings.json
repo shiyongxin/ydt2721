@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python examples/beijing_attenuation.py)",
+      "Bash(python -c \":*)",
+      "Bash(python -m pytest tests/test_rain_selector.py -v)",
+      "Bash(python -m pytest ydt2721/tests/test_rain_selector.py -v)",
+      "Bash(python -m pytest ydt2721/tests/test_integration.py -v)",
+      "Bash(python ydt2721/cli.py --help)",
+      "Bash(python cli.py calculate --config .template.json --output test_result --format json --no-validate)",
+      "Bash(python ydt2721/cli.py calculate --config ydt2721/template.json --output test_hpa --format json --no-validate)"
+    ]
+  }
+}
