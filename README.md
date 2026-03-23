@@ -29,33 +29,35 @@
 ## 项目结构
 
 ```
-ydt2721/
-├── src/
-│   └── ydt2721/
-│       ├── core/              # 核心计算模块
-│       │   ├── satellite.py    # M02: 卫星参数计算
-│       │   ├── carrier.py      # M03: 载波带宽计算
-│       │   ├── earth_station.py  # M04: 地球站参数计算
-│       │   ├── space_loss.py   # M05: 空间损耗计算
-│       │   ├── clear_sky.py    # M06: 晴天链路计算
-│       │   ├── rain_impact.py  # M07: 降雨影响计算
-│       │   ├── reverse_calc.py # 反向计算模块 🌟 新增
-│       │   └── itu_rain_wrapper.py # ITU-Rpy 封装
-│       ├── models/            # 数据模型
-│       │   └── dataclass.py
-│       ├── output/            # 报告生成器
-│       │   ├── markdown_report.py
-│       │   ├── excel_report.py
-│       │   ├── json_export.py
-│       │   └── pdf_report.py
-│       ├── calculator.py      # 主计算函数
-│       └── __init__.py
-├── cli.py                     # 命令行工具 🌟 新增功能
-├── examples/
-│   └── demo.py                # 使用示例
-├── tests/
-│   └── test_*.py              # 单元测试
-└── README.md
+.
+├── ydt2721/
+│   ├── src/
+│   │   └── ydt2721/
+│   │       ├── core/              # 核心计算模块
+│   │       │   ├── satellite.py    # M02: 卫星参数计算
+│   │       │   ├── carrier.py      # M03: 载波带宽计算
+│   │       │   ├── earth_station.py  # M04: 地球站参数计算
+│   │       │   ├── space_loss.py   # M05: 空间损耗计算
+│   │       │   ├── clear_sky.py    # M06: 晴天链路计算
+│   │       │   ├── rain_impact.py  # M07: 降雨影响计算
+│   │       │   ├── reverse_calc.py # 反向计算模块 🌟 新增
+│   │       │   └── itu_rain_wrapper.py # ITU-Rpy 封装
+│   │       ├── models/            # 数据模型
+│   │       │   └── dataclass.py
+│   │       ├── output/            # 报告生成器
+│   │       │   ├── markdown_report.py
+│   │       │   ├── excel_report.py
+│   │       │   ├── json_export.py
+│   │       │   └── pdf_report.py
+│   │       ├── calculator.py      # 主计算函数
+│   │       └── __init__.py
+│   ├── cli.py                     # 命令行工具 🌟 新增功能
+│   ├── examples/
+│   │   └── demo.py                # 使用示例
+│   ├── tests/
+│   │   └── test_*.py              # 单元测试
+│   └── docs/                      # 项目文档
+├── README.md                      # 本文件
 ```
 
 ## 快速开始
@@ -65,8 +67,7 @@ ydt2721/
 #### 安装依赖
 
 ```bash
-cd ydt2721
-pip install -e .
+pip install -e ./ydt2721
 pip install itur numpy scipy pyproj astropy
 ```
 
@@ -93,10 +94,10 @@ pip install itur numpy scipy pyproj astropy
 
 ```bash
 # 生成默认参数模板
-python cli.py template --output config.json
+python ydt2721/cli.py template --output config.json
 
 # 验证参数配置
-python cli.py validate --config config.json
+python ydt2721/cli.py validate --config config.json
 ```
 
 ### 计算模式
@@ -107,19 +108,19 @@ python cli.py validate --config config.json
 
 ```bash
 # 基本计算（使用配置文件中的可用度）
-python cli.py calculate --config config.json
+python ydt2721/cli.py calculate --config config.json
 
 # 指定输出格式
-python cli.py calculate --config config.json --format markdown
-python cli.py calculate --config config.json --format excel
-python cli.py calculate --config config.json --format json
-python cli.py calculate --config config.json --format pdf
+python ydt2721/cli.py calculate --config config.json --format markdown
+python ydt2721/cli.py calculate --config config.json --format excel
+python ydt2721/cli.py calculate --config config.json --format json
+python ydt2721/cli.py calculate --config config.json --format pdf
 
 # 生成所有格式报告
-python cli.py calculate --config config.json --format all --output myreport
+python ydt2721/cli.py calculate --config config.json --format all --output myreport
 
 # 在控制台显示 JSON 结果
-python cli.py calculate --config config.json --print-json
+python ydt2721/cli.py calculate --config config.json --print-json
 ```
 
 #### 2. Availability 模式 - 根据 UPC 补偿量计算可达可用度
@@ -128,16 +129,16 @@ python cli.py calculate --config config.json --print-json
 
 ```bash
 # 根据 UPC 补偿量计算可达可用度
-python cli.py calculate --config config.json \
+python ydt2721/cli.py calculate --config config.json \
     --calc-mode availability --upc-reserved 5
 
 # 生成完整报告
-python cli.py calculate --config config.json \
+python ydt2721/cli.py calculate --config config.json \
     --calc-mode availability --upc-reserved 5 \
     --format all --print-json
 
 # 生成完整报告
-python cli.py calculate --config config.json \
+python ydt2721/cli.py calculate --config config.json \
     --calc-mode availability --upc-reserved 5 \
     --format all --print-json
 ```
@@ -156,11 +157,11 @@ python cli.py calculate --config config.json \
 
 ```bash
 # 分析 50W 功放可支持的可用度
-python cli.py calculate --config config.json \
+python ydt2721/cli.py calculate --config config.json \
     --hpa-power 50
 
 # 分析 100W 功放并生成完整报告
-python cli.py calculate --config config.json \
+python ydt2721/cli.py calculate --config config.json \
     --hpa-power 100 --format all
 ```
 
@@ -192,30 +193,30 @@ python cli.py calculate --config config.json \
 
 ```bash
 # 1. 基本链路计算（推荐新手）
-python cli.py calculate --config config.json
+python ydt2721/cli.py calculate --config config.json
 
 # 2. 根据可用度需求计算所需功放功率
-python cli.py calculate --config config.json --format all
+python ydt2721/cli.py calculate --config config.json --format all
 
 # 3. 根据预留UPC计算可达可用度
-python cli.py calculate --config config.json \
+python ydt2721/cli.py calculate --config config.json \
     --calc-mode availability --upc-reserved 5 \
     --format all
 
 # 4. 分析给定功放可支持的可用度
-python cli.py calculate --config config.json \
+python ydt2721/cli.py calculate --config config.json \
     --hpa-power 50 --format all
 
 # 5. 组合分析：Availability 模式 + HPA 功率分析
-python cli.py calculate --config config.json \
+python ydt2721/cli.py calculate --config config.json \
     --calc-mode availability --upc-reserved 5 \
     --hpa-power 50 --format all --print-json
 
 # 6. 只生成 JSON 报告并在控制台显示
-python cli.py calculate --config config.json --format json --print-json
+python ydt2721/cli.py calculate --config config.json --format json --print-json
 
 # 8. 指定输出文件前缀
-python cli.py calculate --config config.json --output mylinkbudget --format all
+python ydt2721/cli.py calculate --config config.json --output mylinkbudget --format all
 ```
 
 ### 报告输出
@@ -308,7 +309,7 @@ print(f"功放功率: {result.clear_sky_hpa_power:.2f} W")
 ### 运行示例
 
 ```bash
-cd examples
+cd ydt2721/examples
 python demo.py
 ```
 
@@ -403,14 +404,13 @@ print(f"闪烁衰减: {result.rx_scintillation_attenuation:.2f} dB")
 #### CLI 命令行
 
 ```bash
-python cli.py calculate --config config.json --format all
+python ydt2721/cli.py calculate --config config.json --format all
 ```
 
 ### 更多信息
 
-- **完整集成指南**: [ITURPY_INTEGRATION_GUIDE.md](ITURPY_INTEGRATION_GUIDE.md)
-- **快速参考**: [ITURPY_QUICK_REFERENCE.md](ITURPY_QUICK_REFERENCE.md)
-- **总结文档**: [ITURPY_SUMMARY.md](ITURPY_SUMMARY.md)
+- **ITU-Rpy 官方文档**: https://itur-ulal.github.io/itu-rpy/
+- **项目文档**: [ydt2721/docs/](ydt2721/docs/)
 
 ## 双向计算功能 🌟
 
@@ -467,7 +467,7 @@ UPC补偿量 (min(A_pu, A_UPC,max))
 
 **解决方案:**
 ```bash
-python cli.py calculate --config config.json \
+python ydt2721/cli.py calculate --config config.json \
     --format all --output link_budget_99.9
 ```
 
@@ -482,7 +482,7 @@ python cli.py calculate --config config.json \
 
 **解决方案:**
 ```bash
-python cli.py calculate --config config.json \
+python ydt2721/cli.py calculate --config config.json \
     --calc-mode availability --upc-reserved 5 \
     --format all
 ```
@@ -498,7 +498,7 @@ python cli.py calculate --config config.json \
 
 **解决方案:**
 ```bash
-python cli.py calculate --config config.json \
+python ydt2721/cli.py calculate --config config.json \
     --hpa-power 50 --format all
 ```
 
@@ -518,13 +518,13 @@ python cli.py calculate --config config.json \
    └── 地球站参数 (位置、天线口径等)
 
 2. 生成参数模板
-   python cli.py template --output config.json
+   python ydt2721/cli.py template --output config.json
 
 3. 编辑配置文件
    vim config.json  # 设置可用度需求
 
 4. 计算所需功率
-   python cli.py calculate --config config.json --format all
+   python ydt2721/cli.py calculate --config config.json --format all
 
 5. 查看报告
    ├── Markdown: 查看人类可读报告
@@ -541,7 +541,7 @@ python cli.py calculate --config config.json \
    └── 可用于UPC的功率: 计算得出
 
 2. 计算可达可用度
-   python cli.py calculate --config config.json \
+   python ydt2721/cli.py calculate --config config.json \
        --calc-mode availability --upc-reserved 5 \
        --format all
 
@@ -570,7 +570,7 @@ python cli.py calculate --config config.json \
 ### 运行测试
 
 ```bash
-python -m pytest tests/
+python -m pytest ydt2721/tests/
 ```
 
 ### 代码风格
