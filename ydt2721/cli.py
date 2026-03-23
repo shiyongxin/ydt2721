@@ -142,6 +142,12 @@ def create_parser() -> argparse.ArgumentParser:
         help='指定功放功率 (W)，用于分析给定功放可支持的可用度'
     )
     calc_parser.add_argument(
+        '--target-margin',
+        type=float,
+        default=None,
+        help='目标系统余量 (dB)，调整EIRP以实现目标余量'
+    )
+    calc_parser.add_argument(
         '--station-height',
         type=float,
         default=0.0,
@@ -710,6 +716,7 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str, pr
         uplink_availability=system.get('uplink_availability', 99.9),
         downlink_availability=system.get('downlink_availability', 99.9),
         rain_model='iturpy',  # ITU-Rpy 模型
+        target_margin=system.get('target_margin', args.target_margin or 0.0),  # 目标余量
 
         # 干扰参数（可选）
         ci0_im=interference.get('ci0_im'),
@@ -734,6 +741,24 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str, pr
     print(f"  晴天功放输出功率: {result.clear_sky_hpa_power_W:.4f} W ({result.clear_sky_hpa_power_dBW:.2f} dBW)")
     print(f"  上行雨天载波发射功率: {result.uplink_rain_power_el_W:.4f} W ({result.uplink_rain_power_el_dBW:.2f} dBW)")
     print(f"  上行雨天功放输出功率: {result.uplink_rain_hpa_power_W:.4f} W ({result.uplink_rain_hpa_power_dBW:.2f} dBW)")
+
+    # 显示余量调整结果
+    if result.margin_adjustment_enabled:
+        print("\n" + "-"*60)
+        print("🎯 余量调整结果")
+        print("-"*60)
+        print(f"  目标余量: {result.target_margin:.2f} dB")
+        print(f"  原始余量: {result.clear_sky_margin:.2f} dB")
+        print(f"  调整后余量: {result.final_margin:.2f} dB")
+        print(f"  调整后EIRP: {result.adjusted_eirp_sl:.2f} dBW")
+        print(f"  EIRP调整量: {result.adjusted_eirp_sl - result.satellite_eirp:.2f} dB")
+        print(f"  调整后发射功率: {result.adjusted_power_el_W:.4f} W ({result.adjusted_power_el_dBW:.2f} dBW)")
+        print(f"  调整后功放功率: {result.adjusted_hpa_power_W:.4f} W ({result.adjusted_hpa_power_dBW:.2f} dBW)")
+        print(f"  迭代次数: {result.margin_iterations}")
+        if result.final_margin < result.target_margin:
+            print(f"  ⚠️  未达到目标余量 (误差: {result.target_margin - result.final_margin:.2f} dB)")
+        else:
+            print(f"  ✅ 达到目标余量")
 
     # 生成报告
     print("\n📝 生成报告...")

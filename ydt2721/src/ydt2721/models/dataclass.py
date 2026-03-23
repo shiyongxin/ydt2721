@@ -150,6 +150,17 @@ class LinkBudgetResult:
     cn_th: float = 0
     ebno_threshold: float = 0
 
+    # 余量调整结果
+    margin_adjustment_enabled: bool = False  # 是否启用余量调整
+    target_margin: float = 0.0  # 目标系统余量 (dB)
+    adjusted_eirp_sl: float = 0.0  # 调整后的载波EIRP (dBW)
+    adjusted_power_el_dBW: float = 0.0  # 调整后的发射功率 (dBW)
+    adjusted_power_el_W: float = 0.0  # 调整后的发射功率 (W)
+    adjusted_hpa_power_dBW: float = 0.0  # 调整后的功放功率 (dBW)
+    adjusted_hpa_power_W: float = 0.0  # 调整后的功放功率 (W)
+    final_margin: float = 0.0  # 调整后的最终余量 (dB)
+    margin_iterations: int = 0  # 迭代次数
+
 
 @dataclass
 class CalculationInput:
@@ -160,4 +171,5 @@ class CalculationInput:
     rx_station: EarthStationParams
     uplink_availability: float  # 上行链路可用度 (%)
     downlink_availability: float  # 下行链路可用度 (%)
+    target_margin: float = 0.0  # 目标系统余量 (dB), 0表示不启用余量调整
     interference: Optional[InterferenceParams] = None

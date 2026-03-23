@@ -308,6 +308,7 @@ class ParameterManager:
         'system': {
             'uplink_availability': 99.9,
             'downlink_availability': 99.9,
+            'target_margin': 0.0,  # 目标系统余量 (dB), 0表示不启用
         },
     }
 

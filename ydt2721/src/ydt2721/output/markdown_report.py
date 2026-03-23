@@ -348,7 +348,29 @@ class MarkdownReportGenerator:
             section.append(f"- **建议:** 雨天载波发射功率需要至少 {result.calculated_power_el_rain_W:.4f} W\n")
             section.append(f"- **建议:** 功放饱和功率需要至少 {result.calculated_hpa_power_rain_W:.4f} W\n")
 
-        section.append("\n### 5.3 总体结论\n")
+        # 余量调整结果
+        if result.margin_adjustment_enabled:
+            section.append("\n### 5.3 余量调整结果\n")
+            section.append(f"| 项目 | 数值 |\n")
+            section.append(f"|------|------|\n")
+            section.append(f"| 目标余量 | {result.target_margin:.2f} dB |\n")
+            section.append(f"| 原始余量 | {result.clear_sky_margin:.2f} dB |\n")
+            section.append(f"| 调整后余量 | {result.final_margin:.2f} dB |\n")
+            section.append(f"| 调整后EIRP | {result.adjusted_eirp_sl:.2f} dBW |\n")
+            section.append(f"| EIRP调整量 | {result.adjusted_eirp_sl - result.satellite_eirp:.2f} dB |\n")
+            section.append(f"| 调整后发射功率 | {result.adjusted_power_el_W:.4f} W ({result.adjusted_power_el_dBW:.2f} dBW) |\n")
+            section.append(f"| 调整后功放功率 | {result.adjusted_hpa_power_W:.4f} W ({result.adjusted_hpa_power_dBW:.2f} dBW) |\n")
+            section.append(f"| 迭代次数 | {result.margin_iterations} |\n")
+
+            if result.final_margin >= result.target_margin:
+                section.append("\n**评估:** 已达到目标余量要求 ✅\n")
+            else:
+                section.append(f"\n**评估:** 未达到目标余量，差值 {result.target_margin - result.final_margin:.2f} dB ⚠️\n")
+                section.append("**说明:** 可能已达到卫星EIRP上限，需要调整其他参数\n")
+
+            section.append("\n### 5.4 总体结论\n")
+        else:
+            section.append("\n### 5.3 总体结论\n")
 
         # 评估系统整体性能
         # 如果所有余量都是正值，说明系统可用

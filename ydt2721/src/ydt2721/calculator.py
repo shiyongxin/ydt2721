@@ -199,6 +199,7 @@ def complete_link_budget(
     downlink_availability: float,  # 下行链路可用度 (%)
     rain_model: str = 'iturpy',  # 降雨模型：仅支持 'iturpy'
     tx_hpa_bo: float = 3.0,  # 地球站功放回退 (dB)
+    target_margin: float = 0.0,  # 目标系统余量 (dB), 0表示不启用余量调整
 
     # 干扰参数（可选）
     ci0_im: float = None,
@@ -475,5 +476,51 @@ def complete_link_budget(
     margin_downlink_rain = calculate_margin(cn_t_rain, cn_th)
 
     result.downlink_rain_margin = margin_downlink_rain
+
+    # ========== 8. 余量调整 (可选) ==========
+    if target_margin > 0:
+        from .core.margin_adjuster import adjust_satellite_eirp
+
+        result.margin_adjustment_enabled = True
+        result.target_margin = target_margin
+
+        # 调整卫星EIRP以实现目标余量
+        adjustment = adjust_satellite_eirp(
+            target_margin=target_margin,
+            current_eirp_sl=eirp_sl,
+            max_eirp_ss=sat_eirp_ss,
+            # 固定参数
+            pfd=pfd,
+            gm2_tx=gm2_tx,
+            sat_gt=sat_gt,
+            downlink_loss=downlink_loss,
+            rx_loss_ar=rx_loss_ar,
+            rx_gt=rx_gt,
+            noise_bw=noise_bw,
+            cn_th=cn_th,
+            # 干扰参数
+            cn_u=cn_u,
+            ci_im=ci_im,
+            ci_u_as=ci_u_as,
+            ci_d_as=ci_d_as,
+            ci_u_xp=ci_u_xp,
+            ci_d_xp=ci_d_xp
+        )
+
+        result.adjusted_eirp_sl = adjustment['adjusted_eirp_sl']
+        result.final_margin = adjustment['final_margin']
+        result.margin_iterations = adjustment['iterations']
+
+        # 计算调整后的功率
+        # EIRP调整量
+        eirp_adjustment = adjustment['eirp_adjustment']
+
+        # 调整后的载波发射功率
+        result.adjusted_power_el_dBW = power_el_dBW + eirp_adjustment
+        result.adjusted_power_el_W = 10 ** (result.adjusted_power_el_dBW / 10)
+
+        # 调整后的功放功率
+        result.adjusted_hpa_power_dBW = result.adjusted_power_el_dBW + tx_hpa_bo
+        result.adjusted_hpa_power_W = 10 ** (result.adjusted_hpa_power_dBW / 10)
 
     return result

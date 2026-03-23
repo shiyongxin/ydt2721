@@ -224,6 +224,23 @@ class ExcelReportGenerator:
         ], columns=['参数', '数值'])
         df_reverse_power.to_excel(writer, sheet_name='反向计算结果', index=False)
 
+        # 余量调整结果（如果启用）
+        if result.margin_adjustment_enabled:
+            df_margin_adj = pd.DataFrame([
+                ['目标余量', f"{result.target_margin:.2f} dB"],
+                ['原始余量', f"{result.clear_sky_margin:.2f} dB"],
+                ['调整后余量', f"{result.final_margin:.2f} dB"],
+                ['调整后EIRP', f"{result.adjusted_eirp_sl:.2f} dBW"],
+                ['EIRP调整量', f"{result.adjusted_eirp_sl - result.satellite_eirp:.2f} dB"],
+                ['调整后发射功率', f"{result.adjusted_power_el_W:.4f} W"],
+                ['调整后发射功率(dBW)', f"{result.adjusted_power_el_dBW:.2f} dBW"],
+                ['调整后功放功率', f"{result.adjusted_hpa_power_W:.4f} W"],
+                ['调整后功放功率(dBW)', f"{result.adjusted_hpa_power_dBW:.2f} dBW"],
+                ['迭代次数', f"{result.margin_iterations}"],
+                ['是否达到目标', '✅ 是' if result.final_margin >= result.target_margin else '❌ 否'],
+            ], columns=['参数', '数值'])
+            df_margin_adj.to_excel(writer, sheet_name='余量调整结果', index=False)
+
         # 反向计算结果（如果有）
         if input_params and input_params.get('_reverse_calc_result'):
             reverse_calc = input_params.get('_reverse_calc_result')
