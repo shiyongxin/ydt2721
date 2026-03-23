@@ -180,18 +180,22 @@ class MarkdownReportGenerator:
         """生成计算结果部分"""
         section = ["## 三、计算结果\n"]
 
-        # 反向计算结果（从可用度计算的UPC余量和功放功率）
-        section.append("### 3.1 功放功率与UPC余量计算结果\n")
+        # 反向计算结果（从可用度计算的UPC余量和载波发射功率）
+        section.append("### 3.1 UPC余量与载波发射功率计算结果\n")
         section.append(MarkdownReportGenerator._format_table({
-            '参数': ['上行降雨衰减', '所需UPC余量', '晴天功放功率', '雨天功放功率', 'UPC是否满足'],
+            '参数': ['上行降雨衰减', '所需UPC余量', '晴天载波发射功率', '雨天载波发射功率', 'UPC是否满足'],
             '数值': [
                 f"{result.uplink_rain_attenuation:.4f} dB",
                 f"**{result.calculated_upc_margin:.4f} dB**",
-                f"{result.calculated_hpa_power_clear:.4f} W",
-                f"{result.calculated_hpa_power_rain:.4f} W",
+                f"{result.calculated_power_el_clear_W:.4f} W",
+                f"{result.calculated_power_el_rain_W:.4f} W",
                 "✅ 满足" if result.upc_sufficient else "❌ 不满足 (需要调整UPC或功放)",
             ]
         }))
+
+        # 功放饱和功率建议
+        section.append("\n**功放饱和功率建议:**\n")
+        section.append(f"- 功放饱和功率应 ≥ **{result.calculated_hpa_power_rain_W:.2f} W** ({result.calculated_hpa_power_rain_dBW:.2f} dBW)\n")
 
         # 带宽计算
         section.append("### 3.2 载波带宽计算\n")
@@ -236,14 +240,14 @@ class MarkdownReportGenerator:
         section.append("#### 3.5.1 晴天状态\n")
         section.append(MarkdownReportGenerator._format_table({
             '参数': ['上行C/N', '下行C/N', '系统C/N', '门限C/N', '系统余量',
-                    '功放发射功率', '功率占用比'],
+                    '载波发射功率', '功率占用比'],
             '数值': [
                 f"{result.clear_sky_cn_u:.2f} dB",
                 f"{result.clear_sky_cn_d:.2f} dB",
                 f"{result.clear_sky_cn_t:.2f} dB",
                 f"{result.cn_th:.2f} dB",
                 f"**{result.clear_sky_margin:.2f} dB**",
-                f"{result.clear_sky_hpa_power:.2f} W",
+                f"{result.clear_sky_power_el_W:.2f} W",
                 f"{result.clear_sky_power_ratio:.2f}%",
             ]
         }))
@@ -251,10 +255,10 @@ class MarkdownReportGenerator:
         # 上行降雨
         section.append("#### 3.5.2 上行降雨状态\n")
         section.append(MarkdownReportGenerator._format_table({
-            '参数': ['系统余量', '功放发射功率'],
+            '参数': ['系统余量', '载波发射功率'],
             '数值': [
                 f"**{result.uplink_rain_margin:.2f} dB**",
-                f"{result.uplink_rain_hpa_power:.2f} W",
+                f"{result.uplink_rain_power_el_W:.2f} W",
             ]
         }))
 
@@ -301,8 +305,8 @@ class MarkdownReportGenerator:
         section.append("- 载波分配带宽: **" + f"{result.allocated_bandwidth/1e6:.2f} MHz**\n")
         section.append("- 载波带宽占用比: **" + f"{result.bandwidth_ratio:.2f}%**\n")
         section.append("- 载波卫星功率占用比: **" + f"{result.clear_sky_power_ratio:.2f}%**\n")
-        section.append("- 载波所需地球站功放发射功率（晴天）: **" + f"{result.clear_sky_hpa_power:.2f} W**\n")
-        section.append("- 载波所需地球站功放发射功率（上行降雨）: **" + f"{result.uplink_rain_hpa_power:.2f} W**\n")
+        section.append("- 载波发射功率（晴天）: **" + f"{result.clear_sky_power_el_W:.2f} W**\n")
+        section.append("- 载波发射功率（上行降雨）: **" + f"{result.uplink_rain_power_el_W:.2f} W**\n")
         section.append("- 系统余量（晴天C/N）: **" + f"{result.clear_sky_margin:.2f} dB**\n")
         section.append("- 系统余量（上行降雨C/N）: **" + f"{result.uplink_rain_margin:.2f} dB**\n")
         section.append("- 系统余量（下行降雨C/N）: **" + f"{result.downlink_rain_margin:.2f} dB**\n")
@@ -332,15 +336,17 @@ class MarkdownReportGenerator:
         section.append("\n### 5.2 UPC余量与功放功率需求\n")
         section.append(f"- 上行降雨衰减: {result.uplink_rain_attenuation:.4f} dB\n")
         section.append(f"- **所需UPC余量: {result.calculated_upc_margin:.4f} dB**\n")
-        section.append(f"- **晴天功放功率: {result.calculated_hpa_power_clear:.4f} W**\n")
-        section.append(f"- **雨天功放功率: {result.calculated_hpa_power_rain:.4f} W**\n")
+        section.append(f"- **晴天载波发射功率: {result.calculated_power_el_clear_W:.4f} W**\n")
+        section.append(f"- **雨天载波发射功率: {result.calculated_power_el_rain_W:.4f} W**\n")
+        section.append(f"- **功放饱和功率: ≥ {result.calculated_hpa_power_rain_W:.2f} W**\n")
 
         if result.upc_sufficient:
             section.append("- **UPC评估:** 当前配置可满足可用度要求 ✅\n")
         else:
             section.append("- **UPC评估:** 需要调整配置以满足可用度要求 ⚠️\n")
             section.append(f"- **建议:** 将UPC余量调整为至少 {result.calculated_upc_margin:.2f} dB\n")
-            section.append(f"- **建议:** 雨天功放功率需要至少 {result.calculated_hpa_power_rain:.4f} W\n")
+            section.append(f"- **建议:** 雨天载波发射功率需要至少 {result.calculated_power_el_rain_W:.4f} W\n")
+            section.append(f"- **建议:** 功放饱和功率需要至少 {result.calculated_hpa_power_rain_W:.4f} W\n")
 
         section.append("\n### 5.3 总体结论\n")
 

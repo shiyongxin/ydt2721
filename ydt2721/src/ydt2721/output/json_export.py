@@ -43,8 +43,9 @@ class JSONExporter:
                     'allocated_bandwidth_mhz': round(result.allocated_bandwidth / 1e6, 2),
                     'bandwidth_ratio_percent': round(result.bandwidth_ratio, 2),
                     'power_ratio_percent': round(result.clear_sky_power_ratio, 2),
-                    'hpa_power_clear_sky_w': round(result.clear_sky_hpa_power, 2),
-                    'hpa_power_uplink_rain_w': round(result.uplink_rain_hpa_power, 2),
+                    'carrier_transmit_power_clear_sky_w': round(result.clear_sky_power_el_W, 2),
+                    'carrier_transmit_power_uplink_rain_w': round(result.uplink_rain_power_el_W, 2),
+                    'hpa_saturation_power_w': round(result.calculated_hpa_power_rain_W, 2),
                     'margin_clear_sky_db': round(result.clear_sky_margin, 2),
                     'margin_uplink_rain_db': round(result.uplink_rain_margin, 2),
                     'margin_downlink_rain_db': round(result.downlink_rain_margin, 2),
@@ -52,8 +53,9 @@ class JSONExporter:
                 'reverse_calculation': {
                     'uplink_rain_attenuation_db': round(result.uplink_rain_attenuation, 4),
                     'required_upc_margin_db': round(result.calculated_upc_margin, 4),
-                    'calculated_hpa_power_clear_w': round(result.calculated_hpa_power_clear, 4),
-                    'calculated_hpa_power_rain_w': round(result.calculated_hpa_power_rain, 4),
+                    'carrier_transmit_power_clear_w': round(result.calculated_power_el_clear_W, 4),
+                    'carrier_transmit_power_rain_w': round(result.calculated_power_el_rain_W, 4),
+                    'hpa_saturation_power_w': round(result.calculated_hpa_power_rain_W, 4),
                     'upc_sufficient': result.upc_sufficient,
                 }
             }
@@ -114,12 +116,14 @@ class JSONExporter:
                 'system_cn_db': round(result.clear_sky_cn_t, 2),
                 'threshold_cn_db': round(result.cn_th, 2),
                 'margin_db': round(result.clear_sky_margin, 2),
-                'hpa_power_w': round(result.clear_sky_hpa_power, 2),
+                'carrier_transmit_power_w': round(result.clear_sky_power_el_W, 2),
+                'hpa_saturation_power_w': round(result.clear_sky_hpa_power_W, 2),
                 'power_ratio_percent': round(result.clear_sky_power_ratio, 2),
             },
             'uplink_rain': {
                 'margin_db': round(result.uplink_rain_margin, 2),
-                'hpa_power_w': round(result.uplink_rain_hpa_power, 2),
+                'carrier_transmit_power_w': round(result.uplink_rain_power_el_W, 2),
+                'hpa_saturation_power_w': round(result.uplink_rain_hpa_power_W, 2),
             },
             'downlink_rain': {
                 'margin_db': round(result.downlink_rain_margin, 2),
@@ -134,8 +138,9 @@ class JSONExporter:
             'reverse_calculation': {
                 'uplink_rain_attenuation_db': round(result.uplink_rain_attenuation, 4),
                 'required_upc_margin_db': round(result.calculated_upc_margin, 4),
-                'calculated_hpa_power_clear_w': round(result.calculated_hpa_power_clear, 4),
-                'calculated_hpa_power_rain_w': round(result.calculated_hpa_power_rain, 4),
+                'carrier_transmit_power_clear_w': round(result.calculated_power_el_clear_W, 4),
+                'carrier_transmit_power_rain_w': round(result.calculated_power_el_rain_W, 4),
+                'hpa_saturation_power_w': round(result.calculated_hpa_power_rain_W, 4),
                 'upc_sufficient': result.upc_sufficient,
             },
         }

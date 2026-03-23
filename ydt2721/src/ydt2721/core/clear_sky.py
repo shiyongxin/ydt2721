@@ -242,6 +242,7 @@ def calculate_earth_station_eirp(sfd: float, bo_il: float, gm2: float,
 
 def calculate_hpa_power(eirp_el: float, antenna_gain: float,
                          feed_loss: float, noise_bandwidth: float,
+                         hpa_bo: float = 3.0,
                          off_axis_gain: float = 0) -> tuple:
     """
     计算地球站功放发射功率和偏轴EIRP谱密度
@@ -251,26 +252,33 @@ def calculate_hpa_power(eirp_el: float, antenna_gain: float,
         antenna_gain: 天线发射增益, 单位dBi
         feed_loss: 馈线损耗, 单位dB
         noise_bandwidth: 噪声带宽, 单位Hz
+        hpa_bo: 功放回退, 单位dB
         off_axis_gain: 偏轴增益, 单位dBi
 
     Returns:
-        (功放功率dBW, 功放功率W, 功率谱密度, 偏轴EIRP谱密度)
+        (载波所需发射功率dBW, 载波所需发射功率W,
+         功放输出功率dBW, 功放输出功率W,
+         功率谱密度, 偏轴EIRP谱密度)
 
     Example:
-        >>> calculate_hpa_power(48.74, 54.67, 1.5, 1600000, 18.02)
-        (-4.43, 0.36, -66.47, -49.96)
+        >>> calculate_hpa_power(48.74, 54.67, 1.5, 1600000, 3.0, 18.02)
+        (-4.43, 0.36, -1.43, 0.72, -66.47, -49.96)
     """
-    # 计算功放发射功率
-    power_dBW = eirp_el - antenna_gain + feed_loss
-    power_W = 10 ** (power_dBW / 10)
+    # 1. 计算载波所需地球站发射功率
+    power_el_dBW = eirp_el - antenna_gain + feed_loss
+    power_el_W = 10 ** (power_el_dBW / 10)
 
-    # 计算功率谱密度
-    power_density = power_dBW - 10 * math.log10(noise_bandwidth)
+    # 2. 计算功放输出功率（考虑功放回退）
+    hpa_power_dBW = power_el_dBW + hpa_bo
+    hpa_power_W = 10 ** (hpa_power_dBW / 10)
+
+    # 计算功率谱密度（基于载波功率）
+    power_density = power_el_dBW - 10 * math.log10(noise_bandwidth)
 
     # 计算偏轴EIRP谱密度
     off_axis_eirp_density = power_density - feed_loss + off_axis_gain
 
-    return power_dBW, power_W, power_density, off_axis_eirp_density
+    return power_el_dBW, power_el_W, hpa_power_dBW, hpa_power_W, power_density, off_axis_eirp_density
 
 
 def calculate_power_ratio(eirp_sl: float, eirp_ss: float, bo_o: float) -> float:

@@ -50,6 +50,7 @@ class EarthStationParams:
     upc_max_comp: float = 5.0 # UPC最大补偿 (dB)
     loss_at: float = 0.5      # 发射站损耗 (dB)
     loss_ar: float = 0.5      # 接收站损耗 (dB)
+    hpa_bo: float = 3.0       # 功放回退 (dB)
 
 
 @dataclass
@@ -108,20 +109,32 @@ class LinkBudgetResult:
     clear_sky_cn_d: float = 0
     clear_sky_cn_t: float = 0
     clear_sky_margin: float = 0
-    clear_sky_hpa_power: float = 0
+    clear_sky_power_el_dBW: float = 0      # 载波所需地球站发射功率 (dBW)
+    clear_sky_power_el_W: float = 0        # 载波所需地球站发射功率 (W)
+    clear_sky_hpa_power_dBW: float = 0     # 功放输出功率 (dBW)
+    clear_sky_hpa_power_W: float = 0       # 功放输出功率 (W)
     clear_sky_power_ratio: float = 0
 
     # 上行降雨结果
     uplink_rain_margin: float = 0
-    uplink_rain_hpa_power: float = 0
+    uplink_rain_power_el_dBW: float = 0    # 载波所需地球站发射功率 (dBW)
+    uplink_rain_power_el_W: float = 0      # 载波所需地球站发射功率 (W)
+    uplink_rain_hpa_power_dBW: float = 0   # 功放输出功率 (dBW)
+    uplink_rain_hpa_power_W: float = 0     # 功放输出功率 (W)
 
     # 下行降雨结果
     downlink_rain_margin: float = 0
 
     # 反向计算结果：从可用度计算的UPC余量和功放功率
     calculated_upc_margin: float = 0  # 根据可用度计算的所需UPC余量 (dB)
-    calculated_hpa_power_clear: float = 0  # 计算的晴天功放功率 (W)
-    calculated_hpa_power_rain: float = 0  # 计算的雨天功放功率 (W)
+    calculated_power_el_clear_dBW: float = 0  # 计算的晴天载波所需发射功率 (dBW)
+    calculated_power_el_clear_W: float = 0    # 计算的晴天载波所需发射功率 (W)
+    calculated_hpa_power_clear_dBW: float = 0 # 计算的晴天功放输出功率 (dBW)
+    calculated_hpa_power_clear_W: float = 0   # 计算的晴天功放输出功率 (W)
+    calculated_power_el_rain_dBW: float = 0   # 计算的雨天载波所需发射功率 (dBW)
+    calculated_power_el_rain_W: float = 0     # 计算的雨天载波所需发射功率 (W)
+    calculated_hpa_power_rain_dBW: float = 0  # 计算的雨天功放输出功率 (dBW)
+    calculated_hpa_power_rain_W: float = 0    # 计算的雨天功放输出功率 (W)
     upc_sufficient: bool = True  # 当前UPC能力是否满足可用度要求
     uplink_rain_attenuation: float = 0  # 上行降雨衰减 (dB)
     required_upc_margin: float = 0  # 所需UPC余量 (dB)

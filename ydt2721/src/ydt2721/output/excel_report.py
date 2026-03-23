@@ -50,19 +50,20 @@ class ExcelReportGenerator:
             ['计算时间', datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
             ['软件版本', '1.0.0'],
             ['', ''],
-            ['反向计算结果（从可用度计算的UPC余量和功放功率）', ''],
+            ['反向计算结果（从可用度计算的UPC余量和载波发射功率）', ''],
             ['上行降雨衰减', f"{result.uplink_rain_attenuation:.4f} dB"],
             ['所需UPC余量', f"**{result.calculated_upc_margin:.4f} dB**"],
-            ['晴天功放功率（计算值）', f"**{result.calculated_hpa_power_clear:.4f} W**"],
-            ['雨天功放功率（计算值）', f"**{result.calculated_hpa_power_rain:.4f} W**"],
+            ['晴天载波发射功率', f"**{result.calculated_power_el_clear_W:.4f} W**"],
+            ['雨天载波发射功率', f"**{result.calculated_power_el_rain_W:.4f} W**"],
+            ['功放饱和功率', f"≥{result.calculated_hpa_power_rain_W:.2f} W"],
             ['UPC是否满足', '✅ 满足' if result.upc_sufficient else '❌ 不满足'],
             ['', ''],
             ['主要输出参数', ''],
             ['载波分配带宽', f"{result.allocated_bandwidth/1e6:.2f} MHz"],
             ['载波带宽占用比', f"{result.bandwidth_ratio:.2f}%"],
             ['载波卫星功率占用比', f"{result.clear_sky_power_ratio:.2f}%"],
-            ['功放发射功率（晴天）', f"{result.clear_sky_hpa_power:.2f} W"],
-            ['功放发射功率（上行降雨）', f"{result.uplink_rain_hpa_power:.2f} W"],
+            ['载波发射功率（晴天）', f"{result.clear_sky_power_el_W:.2f} W"],
+            ['载波发射功率（上行降雨）', f"{result.uplink_rain_power_el_W:.2f} W"],
             ['系统余量（晴天C/N）', f"{result.clear_sky_margin:.2f} dB"],
             ['系统余量（上行降雨C/N）', f"{result.uplink_rain_margin:.2f} dB"],
             ['系统余量（下行降雨C/N）', f"{result.downlink_rain_margin:.2f} dB"],
@@ -184,7 +185,7 @@ class ExcelReportGenerator:
             ['系统C/N', f"{result.clear_sky_cn_t:.2f} dB"],
             ['门限C/N', f"{result.cn_th:.2f} dB"],
             ['系统余量', f"{result.clear_sky_margin:.2f} dB"],
-            ['功放发射功率', f"{result.clear_sky_hpa_power:.2f} W"],
+            ['载波发射功率', f"{result.clear_sky_power_el_W:.2f} W"],
             ['功率占用比', f"{result.clear_sky_power_ratio:.2f}%"],
         ], columns=['参数', '数值'])
         df_clear.to_excel(writer, sheet_name='晴天链路', index=False)
@@ -192,7 +193,7 @@ class ExcelReportGenerator:
         # 上行降雨
         df_uplink_rain = pd.DataFrame([
             ['系统余量', f"{result.uplink_rain_margin:.2f} dB"],
-            ['功放发射功率', f"{result.uplink_rain_hpa_power:.2f} W"],
+            ['载波发射功率', f"{result.uplink_rain_power_el_W:.2f} W"],
         ], columns=['参数', '数值'])
         df_uplink_rain.to_excel(writer, sheet_name='上行降雨', index=False)
 
@@ -212,12 +213,13 @@ class ExcelReportGenerator:
         ], columns=['参数', '数值'])
         df_interference.to_excel(writer, sheet_name='干扰结果', index=False)
 
-        # 反向计算结果（从可用度计算的UPC余量和功放功率）
+        # 反向计算结果（从可用度计算的UPC余量和载波发射功率）
         df_reverse_power = pd.DataFrame([
             ['上行降雨衰减', f"{result.uplink_rain_attenuation:.4f} dB"],
             ['所需UPC余量', f"**{result.calculated_upc_margin:.4f} dB**"],
-            ['晴天功放功率', f"**{result.calculated_hpa_power_clear:.4f} W**"],
-            ['雨天功放功率', f"**{result.calculated_hpa_power_rain:.4f} W**"],
+            ['晴天载波发射功率', f"**{result.calculated_power_el_clear_W:.4f} W**"],
+            ['雨天载波发射功率', f"**{result.calculated_power_el_rain_W:.4f} W**"],
+            ['功放饱和功率', f"≥{result.calculated_hpa_power_rain_W:.2f} W"],
             ['UPC是否满足', '✅ 满足' if result.upc_sufficient else '❌ 不满足'],
         ], columns=['参数', '数值'])
         df_reverse_power.to_excel(writer, sheet_name='反向计算结果', index=False)

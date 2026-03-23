@@ -55,6 +55,7 @@ def calculate_required_upc_and_power(
     tx_antenna_gain: float,
     tx_feed_loss: float,
     upc_max: float,
+    hpa_bo: float = 3.0,
 ) -> dict:
     """
     根据上行降雨衰减计算所需的UPC余量和功放功率
@@ -69,9 +70,10 @@ def calculate_required_upc_and_power(
         tx_antenna_gain: 发射天线增益 (dBi)
         tx_feed_loss: 发射馈线损耗 (dB)
         upc_max: 当前配置的UPC最大补偿量 (dB)
+        hpa_bo: 地球站功放回退 (dB)
 
     Returns:
-        dict: 包含所需UPC余量、功放功率等信息的字典
+        dict: 包含所需UPC余量、载波发射功率、功放输出功率等信息的字典
     """
     # 所需UPC余量等于降雨衰减量
     required_upc = uplink_rain_att
@@ -82,12 +84,20 @@ def calculate_required_upc_and_power(
     # 雨天EIRP (含UPC补偿)
     eirp_el_rain = eirp_el_clear + required_upc
 
-    # 晴天HPA功率
-    hpa_power_clear_dBW = eirp_el_clear - tx_antenna_gain + tx_feed_loss
+    # 晴天载波所需发射功率
+    power_el_clear_dBW = eirp_el_clear - tx_antenna_gain + tx_feed_loss
+    power_el_clear_W = 10 ** (power_el_clear_dBW / 10)
+
+    # 晴天功放输出功率（考虑回退）
+    hpa_power_clear_dBW = power_el_clear_dBW + hpa_bo
     hpa_power_clear_W = 10 ** (hpa_power_clear_dBW / 10)
 
-    # 雨天HPA功率
-    hpa_power_rain_dBW = eirp_el_rain - tx_antenna_gain + tx_feed_loss
+    # 雨天载波所需发射功率
+    power_el_rain_dBW = eirp_el_rain - tx_antenna_gain + tx_feed_loss
+    power_el_rain_W = 10 ** (power_el_rain_dBW / 10)
+
+    # 雨天功放输出功率（考虑回退）
+    hpa_power_rain_dBW = power_el_rain_dBW + hpa_bo
     hpa_power_rain_W = 10 ** (hpa_power_rain_dBW / 10)
 
     # UPC是否足够
@@ -95,13 +105,17 @@ def calculate_required_upc_and_power(
 
     return {
         'required_upc_margin': required_upc,
+        'calculated_power_el_clear_dBW': power_el_clear_dBW,
+        'calculated_power_el_clear_W': power_el_clear_W,
+        'calculated_hpa_power_clear_dBW': hpa_power_clear_dBW,
         'calculated_hpa_power_clear_W': hpa_power_clear_W,
+        'calculated_power_el_rain_dBW': power_el_rain_dBW,
+        'calculated_power_el_rain_W': power_el_rain_W,
+        'calculated_hpa_power_rain_dBW': hpa_power_rain_dBW,
         'calculated_hpa_power_rain_W': hpa_power_rain_W,
         'upc_sufficient': upc_sufficient,
         'eirp_el_clear_dBW': eirp_el_clear,
         'eirp_el_rain_dBW': eirp_el_rain,
-        'hpa_power_clear_dBW': hpa_power_clear_dBW,
-        'hpa_power_rain_dBW': hpa_power_rain_dBW,
     }
 
 
@@ -184,6 +198,7 @@ def complete_link_budget(
     uplink_availability: float,  # 上行链路可用度 (%)
     downlink_availability: float,  # 下行链路可用度 (%)
     rain_model: str = 'iturpy',  # 降雨模型：仅支持 'iturpy'
+    tx_hpa_bo: float = 3.0,  # 地球站功放回退 (dB)
 
     # 干扰参数（可选）
     ci0_im: float = None,
@@ -335,10 +350,17 @@ def complete_link_budget(
         tx_antenna_gain=tx_antenna_gain,
         tx_feed_loss=tx_feed_loss,
         upc_max=upc_max,
+        hpa_bo=tx_hpa_bo,
     )
     result.calculated_upc_margin = reverse_calc['required_upc_margin']
-    result.calculated_hpa_power_clear = reverse_calc['calculated_hpa_power_clear_W']
-    result.calculated_hpa_power_rain = reverse_calc['calculated_hpa_power_rain_W']
+    result.calculated_power_el_clear_dBW = reverse_calc['calculated_power_el_clear_dBW']
+    result.calculated_power_el_clear_W = reverse_calc['calculated_power_el_clear_W']
+    result.calculated_hpa_power_clear_dBW = reverse_calc['calculated_hpa_power_clear_dBW']
+    result.calculated_hpa_power_clear_W = reverse_calc['calculated_hpa_power_clear_W']
+    result.calculated_power_el_rain_dBW = reverse_calc['calculated_power_el_rain_dBW']
+    result.calculated_power_el_rain_W = reverse_calc['calculated_power_el_rain_W']
+    result.calculated_hpa_power_rain_dBW = reverse_calc['calculated_hpa_power_rain_dBW']
+    result.calculated_hpa_power_rain_W = reverse_calc['calculated_hpa_power_rain_W']
     result.upc_sufficient = reverse_calc['upc_sufficient']
     result.required_upc_margin = reverse_calc['required_upc_margin']
 
@@ -403,8 +425,8 @@ def complete_link_budget(
 
     # 地球站发射参数
     eirp_el = calculate_earth_station_eirp(sat_sfd, bo_il, gm2_tx, uplink_loss, tx_loss_at)
-    hpa_power_dbw, hpa_power_w, _, _ = calculate_hpa_power(
-        eirp_el, tx_antenna_gain, tx_feed_loss, noise_bw
+    power_el_dBW, power_el_W, hpa_power_dBW, hpa_power_W, _, _ = calculate_hpa_power(
+        eirp_el, tx_antenna_gain, tx_feed_loss, noise_bw, tx_hpa_bo
     )
 
     # 功率占用比
@@ -414,7 +436,10 @@ def complete_link_budget(
     result.clear_sky_cn_d = cn_d
     result.clear_sky_cn_t = cn_t
     result.clear_sky_margin = margin
-    result.clear_sky_hpa_power = hpa_power_w
+    result.clear_sky_power_el_dBW = power_el_dBW
+    result.clear_sky_power_el_W = power_el_W
+    result.clear_sky_hpa_power_dBW = hpa_power_dBW
+    result.clear_sky_hpa_power_W = hpa_power_W
     result.clear_sky_power_ratio = power_ratio
 
     # ========== 6. 上行降雨计算 ==========
@@ -427,12 +452,15 @@ def complete_link_budget(
     # (简化处理，UPC足够时余量基本不变)
     margin_uplink_rain = margin if upc_comp >= uplink_rain_att else margin - (uplink_rain_att - upc_comp)
 
-    hpa_power_dbw_rain, hpa_power_w_rain, _, _ = calculate_hpa_power(
-        eirp_el_rain_u, tx_antenna_gain, tx_feed_loss, noise_bw
+    power_el_dBW_rain, power_el_W_rain, hpa_power_dBW_rain, hpa_power_W_rain, _, _ = calculate_hpa_power(
+        eirp_el_rain_u, tx_antenna_gain, tx_feed_loss, noise_bw, tx_hpa_bo
     )
 
     result.uplink_rain_margin = margin_uplink_rain
-    result.uplink_rain_hpa_power = hpa_power_w_rain
+    result.uplink_rain_power_el_dBW = power_el_dBW_rain
+    result.uplink_rain_power_el_W = power_el_W_rain
+    result.uplink_rain_hpa_power_dBW = hpa_power_dBW_rain
+    result.uplink_rain_hpa_power_W = hpa_power_W_rain
 
     # ========== 7. 下行降雨计算 ==========
     cn_d_rain = calculate_downlink_rain_cn(

@@ -503,14 +503,14 @@ class PDFReportGenerator:
             link_data = [
                 ['参数', '晴天', '上行降雨', '下行降雨'],
                 ['系统余量 (dB)', f"{result.clear_sky_margin:.2f}", f"{result.uplink_rain_margin:.2f}", f"{result.downlink_rain_margin:.2f}"],
-                ['功放功率 (W)', f"{result.clear_sky_hpa_power:.2f}", f"{result.uplink_rain_hpa_power:.2f}", '-'],
+                ['载波发射功率 (W)', f"{result.clear_sky_power_el_W:.2f}", f"{result.uplink_rain_power_el_W:.2f}", '-'],
             ]
         else:
             tables.append(Paragraph("3.2 Link Performance", style=heading2_style))
             link_data = [
                 ['Parameter', 'Clear Sky', 'Uplink Rain', 'Downlink Rain'],
                 ['Margin (dB)', f"{result.clear_sky_margin:.2f}", f"{result.uplink_rain_margin:.2f}", f"{result.downlink_rain_margin:.2f}"],
-                ['HPA Power (W)', f"{result.clear_sky_hpa_power:.2f}", f"{result.uplink_rain_hpa_power:.2f}", '-'],
+                ['Carrier Transmit Power (W)', f"{result.clear_sky_power_el_W:.2f}", f"{result.uplink_rain_power_el_W:.2f}", '-'],
             ]
         link_table = Table(link_data, colWidths=[3*cm, 3*cm, 3*cm, 3*cm])
 
@@ -531,26 +531,26 @@ class PDFReportGenerator:
 
         tables.append(link_table)
 
-        # 反向计算结果（从可用度计算的UPC余量和功放功率）
+        # 反向计算结果（从可用度计算的UPC余量和载波发射功率）
         tables.append(Spacer(1, 0.2*cm))
         if use_chinese:
-            tables.append(Paragraph("3.3 UPC余量和功放功率计算", style=heading2_style))
+            tables.append(Paragraph("3.3 UPC余量和载波发射功率计算", style=heading2_style))
             reverse_power_data = [
                 ['参数', '数值'],
                 ['上行降雨衰减', f"{result.uplink_rain_attenuation:.4f} dB"],
                 ['所需UPC余量', f"{result.calculated_upc_margin:.4f} dB"],
-                ['晴天功放功率', f"{result.calculated_hpa_power_clear:.4f} W"],
-                ['雨天功放功率', f"{result.calculated_hpa_power_rain:.4f} W"],
+                ['晴天载波发射功率', f"{result.calculated_power_el_clear_W:.4f} W"],
+                ['雨天载波发射功率', f"{result.calculated_power_el_rain_W:.4f} W"],
                 ['UPC是否满足', '是' if result.upc_sufficient else '否'],
             ]
         else:
-            tables.append(Paragraph("3.3 UPC Margin and HPA Power Calculation", style=heading2_style))
+            tables.append(Paragraph("3.3 UPC Margin and Carrier Transmit Power Calculation", style=heading2_style))
             reverse_power_data = [
                 ['Parameter', 'Value'],
                 ['Uplink Rain Attenuation', f"{result.uplink_rain_attenuation:.4f} dB"],
                 ['Required UPC Margin', f"{result.calculated_upc_margin:.4f} dB"],
-                ['HPA Power (Clear Sky)', f"{result.calculated_hpa_power_clear:.4f} W"],
-                ['HPA Power (Rain)', f"{result.calculated_hpa_power_rain:.4f} W"],
+                ['Carrier Transmit Power (Clear Sky)', f"{result.calculated_power_el_clear_W:.4f} W"],
+                ['Carrier Transmit Power (Rain)', f"{result.calculated_power_el_rain_W:.4f} W"],
                 ['UPC Sufficient', 'Yes' if result.upc_sufficient else 'No'],
             ]
         reverse_power_table = Table(reverse_power_data, colWidths=[5*cm, 5*cm])
@@ -637,8 +637,8 @@ class PDFReportGenerator:
                 ['带宽占用比', f"{result.bandwidth_ratio:.2f}%"],
                 ['功率占用比', f"{result.clear_sky_power_ratio:.2f}%"],
                 ['所需UPC余量', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_upc_margin:.2f} dB**")],
-                ['晴天功放功率', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_hpa_power_clear:.2f} W**")],
-                ['雨天功放功率', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_hpa_power_rain:.2f} W**")],
+                ['晴天载波发射功率', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_power_el_clear_W:.2f} W**")],
+                ['雨天载波发射功率', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_power_el_rain_W:.2f} W**")],
                 ['晴天系统余量', f"{result.clear_sky_margin:.2f} dB"],
             ]
         else:
@@ -648,8 +648,8 @@ class PDFReportGenerator:
                 ['Bandwidth Ratio', f"{result.bandwidth_ratio:.2f}%"],
                 ['Power Ratio', f"{result.clear_sky_power_ratio:.2f}%"],
                 ['Required UPC Margin', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_upc_margin:.2f} dB**")],
-                ['HPA Power (Clear Sky)', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_hpa_power_clear:.2f} W**")],
-                ['HPA Power (Rain)', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_hpa_power_rain:.2f} W**")],
+                ['Carrier Transmit Power (Clear Sky)', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_power_el_clear_W:.2f} W**")],
+                ['Carrier Transmit Power (Rain)', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_power_el_rain_W:.2f} W**")],
                 ['System Margin (Clear Sky)', f"{result.clear_sky_margin:.2f} dB"],
             ]
 
@@ -729,12 +729,13 @@ class PDFReportGenerator:
 
             # UPC和功放功率评估
             upc_conclusion = "UPC余量与功放功率需求："
+            upc_conclusion += f"所需UPC余量为 {result.calculated_upc_margin:.2f} dB。"
             if result.upc_sufficient:
                 upc_conclusion += "当前配置满足可用度要求。"
             else:
-                upc_conclusion += "所需UPC余量为 {:.2f} dB。功放功率需要调整为 {:.2f} W（晴天）和 {:.2f} W（雨天）。".format(
-                    result.calculated_upc_margin, result.calculated_hpa_power_clear, result.calculated_hpa_power_rain
-                )
+                upc_conclusion += "需要增加UPC余量。"
+            upc_conclusion += f"晴天载波发射功率为 {result.calculated_power_el_clear_W:.2f} W，雨天载波发射功率为 {result.calculated_power_el_rain_W:.2f} W。"
+            upc_conclusion += f"建议功放饱和功率：≥{result.calculated_hpa_power_rain_W:.2f} W。"
         else:
             if excellent and upc_ok:
                 conclusion = "System configuration is reasonable, link performance is good, and availability requirements are met. Minimum margin: {:.2f} dB ({}).".format(min_margin, worst_case_en)
@@ -751,12 +752,13 @@ class PDFReportGenerator:
 
             # UPC and HPA power assessment
             upc_conclusion = "UPC Margin and HPA Power Assessment: "
+            upc_conclusion += f"Required UPC margin is {result.calculated_upc_margin:.2f} dB. "
             if result.upc_sufficient:
                 upc_conclusion += "Current configuration meets availability requirements. "
             else:
-                upc_conclusion += "Required UPC margin is {:.2f} dB. HPA power needs to be adjusted to {:.2f} W (clear sky) and {:.2f} W (rain). ".format(
-                    result.calculated_upc_margin, result.calculated_hpa_power_clear, result.calculated_hpa_power_rain
-                )
+                upc_conclusion += "UPC margin needs to be increased. "
+            upc_conclusion += f"Clear sky carrier transmit power is {result.calculated_power_el_clear_W:.2f} W, rain carrier transmit power is {result.calculated_power_el_rain_W:.2f} W. "
+            upc_conclusion += f"Recommended HPA saturation power: ≥{result.calculated_hpa_power_rain_W:.2f} W."
 
         # 创建带字体的样式
         if chinese_font:

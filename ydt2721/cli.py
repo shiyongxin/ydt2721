@@ -691,6 +691,7 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str, pr
         tx_feed_loss=tx.get('feed_loss', 1.5),
         tx_loss_at=tx.get('loss_at', 0.5),
         upc_max=tx.get('upc_max_comp', 5.0),
+        tx_hpa_bo=tx.get('hpa_bo', 3.0),
 
         # 接收站参数
         rx_station_name=rx.get('name', '接收站'),
@@ -729,8 +730,10 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str, pr
     print(f"  晴天系统余量: {result.clear_sky_margin:.2f} dB")
     print(f"  上行降雨余量: {result.uplink_rain_margin:.2f} dB")
     print(f"  下行降雨余量: {result.downlink_rain_margin:.2f} dB")
-    print(f"  晴天功放功率: {result.clear_sky_hpa_power:.4f} W")
-    print(f"  上行雨天功放功率: {result.uplink_rain_hpa_power:.4f} W")
+    print(f"  晴天载波发射功率: {result.clear_sky_power_el_W:.4f} W ({result.clear_sky_power_el_dBW:.2f} dBW)")
+    print(f"  晴天功放输出功率: {result.clear_sky_hpa_power_W:.4f} W ({result.clear_sky_hpa_power_dBW:.2f} dBW)")
+    print(f"  上行雨天载波发射功率: {result.uplink_rain_power_el_W:.4f} W ({result.uplink_rain_power_el_dBW:.2f} dBW)")
+    print(f"  上行雨天功放输出功率: {result.uplink_rain_hpa_power_W:.4f} W ({result.uplink_rain_hpa_power_dBW:.2f} dBW)")
 
     # 生成报告
     print("\n📝 生成报告...")
@@ -751,8 +754,14 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str, pr
             'unavailability': 100 - system.get('uplink_availability', 99.9),
             'compensable_rain_attenuation_dB': result.calculated_upc_margin,
             'required_upc_margin_db': result.calculated_upc_margin,
-            'calculated_hpa_power_clear_W': result.calculated_hpa_power_clear,
-            'calculated_hpa_power_rain_W': result.calculated_hpa_power_rain,
+            'calculated_power_el_clear_dBW': result.calculated_power_el_clear_dBW,
+            'calculated_power_el_clear_W': result.calculated_power_el_clear_W,
+            'calculated_hpa_power_clear_dBW': result.calculated_hpa_power_clear_dBW,
+            'calculated_hpa_power_clear_W': result.calculated_hpa_power_clear_W,
+            'calculated_power_el_rain_dBW': result.calculated_power_el_rain_dBW,
+            'calculated_power_el_rain_W': result.calculated_power_el_rain_W,
+            'calculated_hpa_power_rain_dBW': result.calculated_hpa_power_rain_dBW,
+            'calculated_hpa_power_rain_W': result.calculated_hpa_power_rain_W,
             'upc_sufficient': result.upc_sufficient,
         }
 
@@ -841,6 +850,7 @@ def generate_template(output_file: str):
         'receiver_noise_temp': 75,
         'loss_at': 0.5,
         'upc_max_comp': 5.0,
+        'hpa_bo': 3.0,
     })
 
     template['rx_station'].update({
