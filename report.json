@@ -1,0 +1,136 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "timestamp": "2026-03-23T12:15:05.026329",
+    "standard": "YD/T 2721-2014"
+  },
+  "input_parameters": {
+    "satellite": {
+      "adj_sat_longitude": null,
+      "longitude": 110.5,
+      "eirp_ss": 48.48,
+      "gt_s": 5.96,
+      "gt_s_ref": 0,
+      "sfd_ref": -84,
+      "bo_i": 6,
+      "bo_o": 3,
+      "transponder_bw": 54000000
+    },
+    "carrier": {
+      "spread_gain": 1,
+      "alpha1": 1.2,
+      "alpha2": 1.4,
+      "info_rate": 2000000,
+      "fec_rate": 0.75,
+      "fec_type": "DVB-S2",
+      "modulation": "QPSK",
+      "modulation_index": 2,
+      "ebno_threshold": 4.5
+    },
+    "tx_station": {
+      "efficiency": 0.65,
+      "feed_loss": 1.5,
+      "loss_at": 0.5,
+      "upc_max_comp": 5.0,
+      "name": "北京",
+      "latitude": 39.92,
+      "longitude": 116.45,
+      "antenna_diameter": 4.5,
+      "frequency": 14.25,
+      "polarization": "V",
+      "antenna_noise_temp": 35,
+      "receiver_noise_temp": 75,
+      "hpa_bo": 3.0
+    },
+    "rx_station": {
+      "efficiency": 0.65,
+      "feed_loss": 0.2,
+      "loss_ar": 0.5,
+      "antenna_noise_temp": 35,
+      "receiver_noise_temp": 75,
+      "name": "乌鲁木齐",
+      "latitude": 43.77,
+      "longitude": 87.68,
+      "antenna_diameter": 1.8,
+      "frequency": 12.5,
+      "polarization": "H"
+    },
+    "system": {
+      "uplink_availability": 99.9,
+      "downlink_availability": 99.9,
+      "target_margin": 2.0
+    },
+    "_reverse_calc_result": {
+      "uplink_rain_attenuation_dB": 3.874853508903959,
+      "upc_reserved_dB": 3.874853508903959,
+      "availability": 99.9,
+      "unavailability": 0.09999999999999432,
+      "compensable_rain_attenuation_dB": 3.874853508903959,
+      "required_upc_margin_db": 3.874853508903959,
+      "calculated_power_el_clear_dBW": -0.75489281949163,
+      "calculated_power_el_clear_W": 0.8404477484423125,
+      "calculated_hpa_power_clear_dBW": 2.24510718050837,
+      "calculated_hpa_power_clear_W": 1.676913720167391,
+      "calculated_power_el_rain_dBW": 3.1199606894123306,
+      "calculated_power_el_rain_W": 2.051143612615519,
+      "calculated_hpa_power_rain_dBW": 6.119960689412331,
+      "calculated_hpa_power_rain_W": 4.092569552840871,
+      "upc_sufficient": true
+    }
+  },
+  "calculation_results": {
+    "bandwidth": {
+      "transmission_rate_bps": 2666666.67,
+      "symbol_rate_bps": 1333333.33,
+      "noise_bandwidth_hz": 1600000.0,
+      "allocated_bandwidth_hz": 1866666.67,
+      "bandwidth_ratio_percent": 3.46
+    },
+    "earth_station": {
+      "tx_antenna_gain_dbi": 54.67,
+      "rx_antenna_gain_dbi": 45.57,
+      "rx_gt_db_k": 24.53,
+      "elevation_deg": 34.59,
+      "azimuth_deg": 148.69
+    },
+    "space_loss": {
+      "uplink_loss_db": 207.01,
+      "downlink_loss_db": 206.03
+    },
+    "clear_sky": {
+      "satellite_eirp_dbw": 30.87,
+      "pfd_dbw_m2": -110.57,
+      "uplink_cn_db": 17.42,
+      "downlink_cn_db": 15.42,
+      "system_cn_db": 13.3,
+      "threshold_cn_db": 5.47,
+      "margin_db": 7.83,
+      "carrier_transmit_power_w": 0.84,
+      "hpa_saturation_power_w": 1.68,
+      "power_ratio_percent": 3.46
+    },
+    "uplink_rain": {
+      "margin_db": 7.83,
+      "carrier_transmit_power_w": 2.05,
+      "hpa_saturation_power_w": 4.09
+    },
+    "downlink_rain": {
+      "margin_db": 5.87
+    },
+    "interference": {
+      "im_ci_db": 99,
+      "u_as_ci_db": 99,
+      "d_as_ci_db": 99,
+      "u_xp_ci_db": 99,
+      "d_xp_ci_db": 99
+    },
+    "reverse_calculation": {
+      "uplink_rain_attenuation_db": 3.8749,
+      "required_upc_margin_db": 3.8749,
+      "carrier_transmit_power_clear_w": 0.8404,
+      "carrier_transmit_power_rain_w": 2.0511,
+      "hpa_saturation_power_w": 4.0926,
+      "upc_sufficient": true
+    }
+  }
+}

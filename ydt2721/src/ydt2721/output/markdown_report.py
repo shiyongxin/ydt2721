@@ -362,7 +362,8 @@ class MarkdownReportGenerator:
             section.append(f"| 调整后功放功率 | {result.adjusted_hpa_power_W:.4f} W ({result.adjusted_hpa_power_dBW:.2f} dBW) |\n")
             section.append(f"| 迭代次数 | {result.margin_iterations} |\n")
 
-            if result.final_margin >= result.target_margin:
+            # 使用容差判断（0.01 dB）
+            if result.final_margin >= result.target_margin - 0.01:
                 section.append("\n**评估:** 已达到目标余量要求 ✅\n")
             else:
                 section.append(f"\n**评估:** 未达到目标余量，差值 {result.target_margin - result.final_margin:.2f} dB ⚠️\n")

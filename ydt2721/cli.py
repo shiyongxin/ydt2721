@@ -556,7 +556,8 @@ def execute_reverse_calculation_inline(config: dict, upc_reserved: float,
 def execute_calculation(config: dict, output_prefix: str, output_format: str, print_json: bool = False,
                        skip_validation: bool = False,
                        calc_mode: str = 'power', upc_reserved: float = None,
-                       hpa_power: float = None, station_height: float = 0.0) -> bool:
+                       hpa_power: float = None, station_height: float = 0.0,
+                       target_margin: float = None) -> bool:
     """执行链路计算"""
     config = json.loads(json.dumps(config))
 
@@ -716,7 +717,8 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str, pr
         uplink_availability=system.get('uplink_availability', 99.9),
         downlink_availability=system.get('downlink_availability', 99.9),
         rain_model='iturpy',  # ITU-Rpy 模型
-        target_margin=system.get('target_margin', args.target_margin or 0.0),  # 目标余量
+        # CLI参数优先级最高，然后是配置文件
+        target_margin=target_margin if target_margin is not None else system.get('target_margin', 0.0),  # 目标余量
 
         # 干扰参数（可选）
         ci0_im=interference.get('ci0_im'),
@@ -755,7 +757,8 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str, pr
         print(f"  调整后发射功率: {result.adjusted_power_el_W:.4f} W ({result.adjusted_power_el_dBW:.2f} dBW)")
         print(f"  调整后功放功率: {result.adjusted_hpa_power_W:.4f} W ({result.adjusted_hpa_power_dBW:.2f} dBW)")
         print(f"  迭代次数: {result.margin_iterations}")
-        if result.final_margin < result.target_margin:
+        # 使用容差判断（0.01 dB）
+        if result.final_margin < result.target_margin - 0.01:
             print(f"  ⚠️  未达到目标余量 (误差: {result.target_margin - result.final_margin:.2f} dB)")
         else:
             print(f"  ✅ 达到目标余量")
@@ -957,7 +960,8 @@ def main():
         execute_calculation(
             config, args.output, args.format, getattr(args, 'print_json', False), args.no_validate,
             args.calc_mode, args.upc_reserved,
-            args.hpa_power, args.station_height
+            args.hpa_power, args.station_height,
+            getattr(args, 'target_margin', None)
         )
 
     elif args.command == 'interactive':

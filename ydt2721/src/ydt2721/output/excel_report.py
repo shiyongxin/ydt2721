@@ -237,7 +237,7 @@ class ExcelReportGenerator:
                 ['调整后功放功率', f"{result.adjusted_hpa_power_W:.4f} W"],
                 ['调整后功放功率(dBW)', f"{result.adjusted_hpa_power_dBW:.2f} dBW"],
                 ['迭代次数', f"{result.margin_iterations}"],
-                ['是否达到目标', '✅ 是' if result.final_margin >= result.target_margin else '❌ 否'],
+                ['是否达到目标', '✅ 是' if result.final_margin >= result.target_margin - 0.01 else '❌ 否'],
             ], columns=['参数', '数值'])
             df_margin_adj.to_excel(writer, sheet_name='余量调整结果', index=False)
 
