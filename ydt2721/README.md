@@ -18,9 +18,8 @@
 - ✅ 参数验证和默认值设置
 - ✅ 多格式报告输出（Markdown、Excel、JSON、PDF）
 - ✅ ITU-Rpy 完整标准降雨衰减模型
-  - 支持简化模型和 ITU-Rpy 模型切换
-  - ITU-Rpy 包含气体、云、降雨、闪烁衰减分量
-  - 高精度（±10%）vs 简化模型（±50%）
+  - 包含气体、云、降雨、闪烁衰减分量
+  - 高精度计算（±10%），符合 ITU-R 标准
 - ✅ **双向计算功能** 🌟 新增
   - 根据可用度需求计算功放功率
   - 根据UPC补偿量计算可达可用度
@@ -63,19 +62,12 @@ ydt2721/
 
 ### 安装
 
-#### 基础安装（仅简化模型）
+#### 安装依赖
 
 ```bash
 cd ydt2721
 pip install -e .
-```
-
-#### 完整安装（含 ITU-Rpy）
-
-```bash
-cd ydt2721
-pip install -e .
-pip install itur
+pip install itur numpy scipy pyproj astropy
 ```
 
 **依赖说明**：
@@ -84,8 +76,8 @@ pip install itur
 |------|------|--------|
 | pandas | 数据处理 | 必需 |
 | openpyxl | Excel 报告 | 必需 |
-| itur | ITU-Rpy 降雨衰减模型 | 可选（高精度） |
-| numpy, scipy, pyproj, astropy | ITU-Rpy 依赖 | ITU-Rpy 需求 |
+| itur | ITU-Rpy 降雨衰减模型 | 必需 |
+| numpy, scipy, pyproj, astropy | ITU-Rpy 依赖 | 必需 |
 
 ### CLI 命令行工具
 
@@ -135,14 +127,14 @@ python cli.py calculate --config config.json --print-json
 根据预留的 UPC（上行功率控制）补偿量，反向计算可达的系统可用度。
 
 ```bash
-# 使用简化模型
+# 根据 UPC 补偿量计算可达可用度
 python cli.py calculate --config config.json \
     --calc-mode availability --upc-reserved 5
 
-# 使用 ITU-Rpy 模型（高精度）
+# 生成完整报告
 python cli.py calculate --config config.json \
     --calc-mode availability --upc-reserved 5 \
-    --rain-model iturpy
+    --format all --print-json
 
 # 生成完整报告
 python cli.py calculate --config config.json \
@@ -165,11 +157,11 @@ python cli.py calculate --config config.json \
 ```bash
 # 分析 50W 功放可支持的可用度
 python cli.py calculate --config config.json \
-    --hpa-power 50 --rain-model simplified
+    --hpa-power 50
 
-# 使用 ITU-Rpy 模型分析
+# 分析 100W 功放并生成完整报告
 python cli.py calculate --config config.json \
-    --hpa-power 100 --rain-model iturpy --format all
+    --hpa-power 100 --format all
 ```
 
 **计算结果示例：**
@@ -192,7 +184,6 @@ python cli.py calculate --config config.json \
 | `--calc-mode` | 计算模式：power 或 availability | power |
 | `--upc-reserved` | 预留的UPC补偿量 | - |
 | `--hpa-power` | 指定功放功率 (W) | - |
-| `--rain-model` | 降雨模型：simplified 或 iturpy | simplified |
 | `--station-height` | 地球站海拔高度 | 0 |
 | `--print-json` | 在控制台输出JSON结果 | - |
 | `--no-validate` | 跳过参数验证 | - |
@@ -209,7 +200,7 @@ python cli.py calculate --config config.json --format all
 # 3. 根据预留UPC计算可达可用度
 python cli.py calculate --config config.json \
     --calc-mode availability --upc-reserved 5 \
-    --rain-model iturpy --format all
+    --format all
 
 # 4. 分析给定功放可支持的可用度
 python cli.py calculate --config config.json \
@@ -220,11 +211,7 @@ python cli.py calculate --config config.json \
     --calc-mode availability --upc-reserved 5 \
     --hpa-power 50 --format all --print-json
 
-# 6. 使用 ITU-Rpy 高精度模型
-python cli.py calculate --config config.json \
-    --rain-model iturpy --format all --print-json
-
-# 7. 只生成 JSON 报告并在控制台显示
+# 6. 只生成 JSON 报告并在控制台显示
 python cli.py calculate --config config.json --format json --print-json
 
 # 8. 指定输出文件前缀
@@ -383,21 +370,21 @@ python demo.py
 - 内部计算使用双精度浮点数
 - 符合YDT 2721-2014标准要求
 
-## ITU-Rpy 降雨衰减模型 🌟
+## ITU-Rpy 降雨衰减模型
 
-### 模型对比
+### 模型特性
 
-| 特性 | 简化模型 | ITU-Rpy |
-|------|---------|---------|
-| **精度** | ±50% | ±10% |
-| **计算速度** | < 1ms | ~5ms |
-| **衰减分量** | 仅降雨 | 气体 + 云 + 降雨 + 闪烁 |
-| **依赖** | 无 | itur, numpy, scipy, pyproj, astropy |
-| **适用场景** | 快速原型设计 | 精确工程计算 |
+| 特性 | ITU-Rpy |
+|------|---------|
+| **精度** | ±10% |
+| **计算速度** | ~5ms |
+| **衰减分量** | 气体 + 云 + 降雨 + 闪烁 |
+| **依赖** | itur, numpy, scipy, pyproj, astropy |
+| **适用场景** | 精确工程计算 |
 
 ### 使用方法
 
-#### 1. Python API - 使用简化模型（默认）
+#### Python API
 
 ```python
 from ydt2721 import complete_link_budget
@@ -405,21 +392,6 @@ from ydt2721 import complete_link_budget
 result = complete_link_budget(
     # ... 其他参数 ...
     availability=99.66,
-    # rain_model='simplified'  # 默认，可省略
-)
-
-print(f"降雨衰减: {result.rx_rain_attenuation:.2f} dB")
-```
-
-#### 2. Python API - 使用 ITU-Rpy 模型
-
-```python
-from ydt2721 import complete_link_budget
-
-result = complete_link_budget(
-    # ... 其他参数 ...
-    availability=99.66,
-    rain_model='iturpy'  # 使用 ITU-Rpy
 )
 
 print(f"降雨衰减: {result.rx_rain_attenuation:.2f} dB")
@@ -428,35 +400,17 @@ print(f"云衰减: {result.rx_cloud_attenuation:.2f} dB")
 print(f"闪烁衰减: {result.rx_scintillation_attenuation:.2f} dB")
 ```
 
-#### 3. CLI 命令行 - 简化模型
+#### CLI 命令行
 
 ```bash
-python3 cli.py calculate --config config.json --rain-model simplified
+python cli.py calculate --config config.json --format all
 ```
-
-#### 4. CLI 命令行 - ITU-Rpy 模型
-
-```bash
-python3 cli.py calculate --config config.json --rain-model iturpy
-```
-
-### 模型选择建议
-
-| 场景 | 推荐模型 | 原因 |
-|------|---------|------|
-| 快速原型设计 | simplified | 速度快，便于迭代 |
-| 初步设计评估 | simplified | 足够的近似精度 |
-| 精确工程计算 | iturpy | 高精度，标准完整 |
-| 商用链路设计 | iturpy + 专业软件 | 需要更高可靠性 |
-| 正式报告生成 | iturpy | 符合 ITU 标准 |
 
 ### 更多信息
 
 - **完整集成指南**: [ITURPY_INTEGRATION_GUIDE.md](ITURPY_INTEGRATION_GUIDE.md)
 - **快速参考**: [ITURPY_QUICK_REFERENCE.md](ITURPY_QUICK_REFERENCE.md)
 - **总结文档**: [ITURPY_SUMMARY.md](ITURPY_SUMMARY.md)
-- **示例脚本**: [example_iturpy.py](example_iturpy.py)
-- **对比测试**: [compare_iturpy.py](compare_iturpy.py)
 
 ## 双向计算功能 🌟
 
@@ -530,7 +484,7 @@ python cli.py calculate --config config.json \
 ```bash
 python cli.py calculate --config config.json \
     --calc-mode availability --upc-reserved 5 \
-    --rain-model iturpy --format all
+    --format all
 ```
 
 **输出结果:**
