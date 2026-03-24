@@ -124,6 +124,9 @@ class LinkBudgetResult:
 
     # 下行降雨结果
     downlink_rain_margin: float = 0
+    downlink_rain_cn_d: float = 0  # 下行降雨时下行C/N (dB)
+    downlink_rain_cn_t: float = 0  # 下行降雨时系统C/N (dB)
+    downlink_rain_power_ratio: float = 0  # 下行降雨时功率占用比 (%)
 
     # 反向计算结果：从可用度计算的UPC余量和功放功率
     calculated_upc_margin: float = 0  # 根据可用度计算的所需UPC余量 (dB)
@@ -160,6 +163,18 @@ class LinkBudgetResult:
     adjusted_hpa_power_W: float = 0.0  # 调整后的功放功率 (W)
     final_margin: float = 0.0  # 调整后的最终余量 (dB)
     margin_iterations: int = 0  # 迭代次数
+
+    # 调整后的C/N值（晴天状态）
+    adjusted_clear_sky_cn_u: float = 0.0  # 调整后的上行C/N (dB)
+    adjusted_clear_sky_cn_d: float = 0.0  # 调整后的下行C/N (dB)
+    adjusted_clear_sky_cn_t: float = 0.0  # 调整后的系统C/N (dB)
+
+    # 调整后的降雨余量
+    adjusted_uplink_rain_margin: float = 0.0  # 调整后的上行降雨余量 (dB)
+    adjusted_downlink_rain_margin: float = 0.0  # 调整后的下行降雨余量 (dB)
+
+    # 调整后的功率占用比
+    adjusted_power_ratio: float = 0.0  # 调整后的功率占用比 (%)
 
 
 @dataclass

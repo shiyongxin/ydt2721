@@ -366,11 +366,20 @@ def complete_link_budget(
     result.required_upc_margin = reverse_calc['required_upc_margin']
 
     # ========== 5. 晴天链路计算 ==========
-    # 上行C/N
-    cn_u = calculate_uplink_cn(pfd, gm2_tx, sat_gt, noise_bw)
+    # 计算固定大气衰减（气体、云、闪烁）作为晴天链路的一部分
+    # 这些衰减相对稳定，不随降雨动态变化
+    tx_fixed_attenuation = (tx_rain_result.get('gas_attenuation_dB', 0) +
+                            tx_rain_result.get('cloud_attenuation_dB', 0) +
+                            tx_rain_result.get('scintillation_attenuation_dB', 0))
+    rx_fixed_attenuation = (rx_rain_result.get('gas_attenuation_dB', 0) +
+                            rx_rain_result.get('cloud_attenuation_dB', 0) +
+                            rx_rain_result.get('scintillation_attenuation_dB', 0))
 
-    # 下行C/N
-    cn_d = calculate_downlink_cn(eirp_sl, downlink_loss, rx_loss_ar, rx_gt, noise_bw)
+    # 上行C/N（减去固定大气衰减）
+    cn_u = calculate_uplink_cn(pfd, gm2_tx, sat_gt, noise_bw) - tx_fixed_attenuation
+
+    # 下行C/N（减去固定大气衰减）
+    cn_d = calculate_downlink_cn(eirp_sl, downlink_loss, rx_loss_ar, rx_gt, noise_bw) - rx_fixed_attenuation
 
     # 干扰C/I（如果提供参数）
     if ci0_im is not None:
@@ -476,6 +485,9 @@ def complete_link_budget(
     margin_downlink_rain = calculate_margin(cn_t_rain, cn_th)
 
     result.downlink_rain_margin = margin_downlink_rain
+    result.downlink_rain_cn_d = cn_d_rain
+    result.downlink_rain_cn_t = cn_t_rain
+    result.downlink_rain_power_ratio = power_ratio  # 下行降雨时功率占用比不变
 
     # ========== 8. 余量调整 (可选) ==========
     if target_margin > 0:
@@ -522,5 +534,49 @@ def complete_link_budget(
         # 调整后的功放功率
         result.adjusted_hpa_power_dBW = result.adjusted_power_el_dBW + tx_hpa_bo
         result.adjusted_hpa_power_W = 10 ** (result.adjusted_hpa_power_dBW / 10)
+
+        # 调整后的功率占用比（根据EIRP调整量按比例调整）
+        # EIRP调整量是dB值，需要转换为线性比例
+        eirp_adjustment_linear = 10 ** (eirp_adjustment / 10)
+        result.adjusted_power_ratio = power_ratio * eirp_adjustment_linear
+
+        # ========== 计算调整后的C/N值和余量 ==========
+
+        # 1. 晴天状态：使用调整后的EIRP重新计算上行C/N、下行C/N和系统C/N
+        # 上行C/N会随EIRP调整而变化（因为地球站发射功率变化）
+        # PFD调整量与EIRP调整量相同
+        pfd_adjusted = pfd + eirp_adjustment
+        result.adjusted_clear_sky_cn_u = calculate_uplink_cn(pfd_adjusted, gm2_tx, sat_gt, noise_bw)
+
+        result.adjusted_clear_sky_cn_d = calculate_downlink_cn(
+            result.adjusted_eirp_sl, downlink_loss, rx_loss_ar, rx_gt, noise_bw
+        )
+        result.adjusted_clear_sky_cn_t = calculate_system_cn(
+            result.adjusted_clear_sky_cn_u, result.adjusted_clear_sky_cn_d, ci_im, ci_u_as, ci_d_as, ci_u_xp, ci_d_xp
+        )
+
+        # 2. 上行降雨状态：使用调整后的EIRP重新计算余量
+        # 注意：上行降雨时，UPC补偿上行C/N，但下行C/N会因为EIRP调整而变化
+        cn_d_uplink_rain_adj = calculate_downlink_cn(
+            result.adjusted_eirp_sl, downlink_loss, rx_loss_ar, rx_gt, noise_bw
+        )
+        # 上行降雨时，UPC补偿使上行C/N恢复到晴天水平
+        cn_t_uplink_rain_adj = calculate_system_cn(
+            result.adjusted_clear_sky_cn_u, cn_d_uplink_rain_adj, ci_im, ci_u_as, ci_d_as, ci_u_xp, ci_d_xp
+        )
+        result.adjusted_uplink_rain_margin = cn_t_uplink_rain_adj - cn_th
+
+        # 3. 下行降雨状态：使用调整后的EIRP重新计算余量
+        cn_d_downlink_rain_adj = calculate_downlink_rain_cn(
+            result.adjusted_eirp_sl, downlink_loss, rx_loss_ar, downlink_rain_att,
+            rx_gt, gt_degradation, noise_bw
+        )
+        cn_t_downlink_rain_adj = calculate_system_cn(
+            result.adjusted_clear_sky_cn_u, cn_d_downlink_rain_adj, ci_im, ci_u_as, ci_d_as, ci_u_xp, ci_d_xp
+        )
+        result.adjusted_downlink_rain_margin = cn_t_downlink_rain_adj - cn_th
+        result.adjusted_downlink_rain_cn_d = cn_d_downlink_rain_adj
+        result.adjusted_downlink_rain_cn_t = cn_t_downlink_rain_adj
+        result.adjusted_downlink_rain_power_ratio = power_ratio  # 下行降雨时功率占用比不变
 
     return result

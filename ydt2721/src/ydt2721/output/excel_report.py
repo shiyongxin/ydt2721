@@ -46,6 +46,18 @@ class ExcelReportGenerator:
     @staticmethod
     def _write_summary_sheet(writer, input_params: Dict[str, Any], result: Any):
         """写入汇总表"""
+        # 根据余量调整状态确定显示的值
+        if result.margin_adjustment_enabled:
+            display_power_el_W = result.adjusted_power_el_W
+            display_margin_val = result.final_margin
+            display_power_ratio = result.adjusted_power_ratio
+            power_note = " (调整后)"
+        else:
+            display_power_el_W = result.clear_sky_power_el_W
+            display_margin_val = result.clear_sky_margin
+            display_power_ratio = result.clear_sky_power_ratio
+            power_note = ""
+
         data = [
             ['计算时间', datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
             ['软件版本', '1.0.0'],
@@ -61,10 +73,10 @@ class ExcelReportGenerator:
             ['主要输出参数', ''],
             ['载波分配带宽', f"{result.allocated_bandwidth/1e6:.2f} MHz"],
             ['载波带宽占用比', f"{result.bandwidth_ratio:.2f}%"],
-            ['载波卫星功率占用比', f"{result.clear_sky_power_ratio:.2f}%"],
-            ['载波发射功率（晴天）', f"{result.clear_sky_power_el_W:.2f} W"],
+            ['载波卫星功率占用比', f"{display_power_ratio:.2f}%" + (f" (原始: {result.clear_sky_power_ratio:.2f}%)" if result.margin_adjustment_enabled else "")],
+            ['载波发射功率（晴天）', f"{display_power_el_W:.2f} W{power_note}"],
             ['载波发射功率（上行降雨）', f"{result.uplink_rain_power_el_W:.2f} W"],
-            ['系统余量（晴天C/N）', f"{result.clear_sky_margin:.2f} dB"],
+            ['系统余量（晴天C/N）', f"{display_margin_val:.2f} dB"],
             ['系统余量（上行降雨C/N）', f"{result.uplink_rain_margin:.2f} dB"],
             ['系统余量（下行降雨C/N）', f"{result.downlink_rain_margin:.2f} dB"],
         ]
@@ -177,29 +189,43 @@ class ExcelReportGenerator:
         df_sl.to_excel(writer, sheet_name='空间损耗', index=False)
 
         # 晴天链路
+        # 根据余量调整状态确定显示的值
+        if result.margin_adjustment_enabled:
+            display_eirp_sl = result.adjusted_eirp_sl
+            display_power_el_W = result.adjusted_power_el_W
+            display_margin = result.final_margin
+            display_power_ratio = result.adjusted_power_ratio
+            eirp_note = " (调整后)"
+        else:
+            display_eirp_sl = result.satellite_eirp
+            display_power_el_W = result.clear_sky_power_el_W
+            display_margin = result.clear_sky_margin
+            display_power_ratio = result.clear_sky_power_ratio
+            eirp_note = ""
+
         df_clear = pd.DataFrame([
-            ['卫星载波EIRP', f"{result.satellite_eirp:.2f} dBW"],
+            ['卫星载波EIRP', f"{display_eirp_sl:.2f} dBW{eirp_note}"],
             ['卫星PFD', f"{result.pfd:.2f} dB(W/m²)"],
-            ['上行C/N', f"{result.clear_sky_cn_u:.2f} dB"],
-            ['下行C/N', f"{result.clear_sky_cn_d:.2f} dB"],
-            ['系统C/N', f"{result.clear_sky_cn_t:.2f} dB"],
+            ['上行C/N', f"{result.adjusted_clear_sky_cn_u:.2f} dB" + (f" (原始: {result.clear_sky_cn_u:.2f})" if eirp_note else "")],
+            ['下行C/N', f"{result.adjusted_clear_sky_cn_d:.2f} dB" + (f" (原始: {result.clear_sky_cn_d:.2f})" if eirp_note else "")],
+            ['系统C/N', f"{result.adjusted_clear_sky_cn_t:.2f} dB" + (f" (原始: {result.clear_sky_cn_t:.2f})" if eirp_note else "")],
             ['门限C/N', f"{result.cn_th:.2f} dB"],
-            ['系统余量', f"{result.clear_sky_margin:.2f} dB"],
-            ['载波发射功率', f"{result.clear_sky_power_el_W:.2f} W"],
-            ['功率占用比', f"{result.clear_sky_power_ratio:.2f}%"],
+            ['系统余量', f"{display_margin:.2f} dB"],
+            ['载波发射功率', f"{display_power_el_W:.2f} W"],
+            ['功率占用比', f"{display_power_ratio:.2f}%" + (f" (原始: {result.clear_sky_power_ratio:.2f}%)" if eirp_note else "")],
         ], columns=['参数', '数值'])
         df_clear.to_excel(writer, sheet_name='晴天链路', index=False)
 
         # 上行降雨
         df_uplink_rain = pd.DataFrame([
-            ['系统余量', f"{result.uplink_rain_margin:.2f} dB"],
+            ['系统余量', f"{result.adjusted_uplink_rain_margin:.2f} dB" + (f" (原始: {result.uplink_rain_margin:.2f})" if eirp_note else "")],
             ['载波发射功率', f"{result.uplink_rain_power_el_W:.2f} W"],
         ], columns=['参数', '数值'])
         df_uplink_rain.to_excel(writer, sheet_name='上行降雨', index=False)
 
         # 下行降雨
         df_downlink_rain = pd.DataFrame([
-            ['系统余量', f"{result.downlink_rain_margin:.2f} dB"],
+            ['系统余量', f"{result.adjusted_downlink_rain_margin:.2f} dB" + (f" (原始: {result.downlink_rain_margin:.2f})" if eirp_note else "")],
         ], columns=['参数', '数值'])
         df_downlink_rain.to_excel(writer, sheet_name='下行降雨', index=False)
 

@@ -498,19 +498,31 @@ class PDFReportGenerator:
         tables.append(Spacer(1, 0.2*cm))
 
         # 链路性能
+        # 根据余量调整状态确定显示的值
+        if result.margin_adjustment_enabled:
+            display_margin_val = result.final_margin
+            display_power_el_W = result.adjusted_power_el_W
+            display_uplink_rain_margin = result.adjusted_uplink_rain_margin
+            display_downlink_rain_margin = result.adjusted_downlink_rain_margin
+        else:
+            display_margin_val = result.clear_sky_margin
+            display_power_el_W = result.clear_sky_power_el_W
+            display_uplink_rain_margin = result.uplink_rain_margin
+            display_downlink_rain_margin = result.downlink_rain_margin
+
         if use_chinese:
             tables.append(Paragraph("3.2 链路性能", style=heading2_style))
             link_data = [
                 ['参数', '晴天', '上行降雨', '下行降雨'],
-                ['系统余量 (dB)', f"{result.clear_sky_margin:.2f}", f"{result.uplink_rain_margin:.2f}", f"{result.downlink_rain_margin:.2f}"],
-                ['载波发射功率 (W)', f"{result.clear_sky_power_el_W:.2f}", f"{result.uplink_rain_power_el_W:.2f}", '-'],
+                ['系统余量 (dB)', f"{display_margin_val:.2f}", f"{display_uplink_rain_margin:.2f}", f"{display_downlink_rain_margin:.2f}"],
+                ['载波发射功率 (W)', f"{display_power_el_W:.2f}", f"{result.uplink_rain_power_el_W:.2f}", '-'],
             ]
         else:
             tables.append(Paragraph("3.2 Link Performance", style=heading2_style))
             link_data = [
                 ['Parameter', 'Clear Sky', 'Uplink Rain', 'Downlink Rain'],
-                ['Margin (dB)', f"{result.clear_sky_margin:.2f}", f"{result.uplink_rain_margin:.2f}", f"{result.downlink_rain_margin:.2f}"],
-                ['Carrier Transmit Power (W)', f"{result.clear_sky_power_el_W:.2f}", f"{result.uplink_rain_power_el_W:.2f}", '-'],
+                ['Margin (dB)', f"{display_margin_val:.2f}", f"{display_uplink_rain_margin:.2f}", f"{display_downlink_rain_margin:.2f}"],
+                ['Carrier Transmit Power (W)', f"{display_power_el_W:.2f}", f"{result.uplink_rain_power_el_W:.2f}", '-'],
             ]
         link_table = Table(link_data, colWidths=[3*cm, 3*cm, 3*cm, 3*cm])
 
@@ -630,6 +642,14 @@ class PDFReportGenerator:
     @staticmethod
     def _create_summary_table(result: Any, use_chinese: bool = False, chinese_font: str = None, chinese_font_bold: str = None) -> Table:
         """创建汇总表格（支持中文）"""
+        # 根据余量调整状态确定显示的值
+        if result.margin_adjustment_enabled:
+            display_power_el_W = result.adjusted_power_el_W
+            display_margin_val = result.final_margin
+        else:
+            display_power_el_W = result.clear_sky_power_el_W
+            display_margin_val = result.clear_sky_margin
+
         if use_chinese:
             data = [
                 ['主要输出参数', '数值'],
@@ -637,9 +657,9 @@ class PDFReportGenerator:
                 ['带宽占用比', f"{result.bandwidth_ratio:.2f}%"],
                 ['功率占用比', f"{result.clear_sky_power_ratio:.2f}%"],
                 ['所需UPC余量', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_upc_margin:.2f} dB**")],
-                ['晴天载波发射功率', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_power_el_clear_W:.2f} W**")],
+                ['晴天载波发射功率', PDFReportGenerator._convert_markdown_to_html(f"**{display_power_el_W:.2f} W**")],
                 ['雨天载波发射功率', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_power_el_rain_W:.2f} W**")],
-                ['晴天系统余量', f"{result.clear_sky_margin:.2f} dB"],
+                ['晴天系统余量', f"{display_margin_val:.2f} dB"],
             ]
         else:
             data = [
@@ -648,9 +668,9 @@ class PDFReportGenerator:
                 ['Bandwidth Ratio', f"{result.bandwidth_ratio:.2f}%"],
                 ['Power Ratio', f"{result.clear_sky_power_ratio:.2f}%"],
                 ['Required UPC Margin', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_upc_margin:.2f} dB**")],
-                ['Carrier Transmit Power (Clear Sky)', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_power_el_clear_W:.2f} W**")],
+                ['Carrier Transmit Power (Clear Sky)', PDFReportGenerator._convert_markdown_to_html(f"**{display_power_el_W:.2f} W**")],
                 ['Carrier Transmit Power (Rain)', PDFReportGenerator._convert_markdown_to_html(f"**{result.calculated_power_el_rain_W:.2f} W**")],
-                ['System Margin (Clear Sky)', f"{result.clear_sky_margin:.2f} dB"],
+                ['System Margin (Clear Sky)', f"{display_margin_val:.2f} dB"],
             ]
 
         table = Table(data, colWidths=[5*cm, 5*cm])
