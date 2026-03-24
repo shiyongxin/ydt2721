@@ -173,6 +173,12 @@ class LinkBudgetResult:
     adjusted_uplink_rain_margin: float = 0.0  # 调整后的上行降雨余量 (dB)
     adjusted_downlink_rain_margin: float = 0.0  # 调整后的下行降雨余量 (dB)
 
+    # 调整后的降雨功率
+    adjusted_uplink_rain_power_el_dBW: float = 0.0  # 调整后的上行降雨发射功率 (dBW)
+    adjusted_uplink_rain_power_el_W: float = 0.0  # 调整后的上行降雨发射功率 (W)
+    adjusted_uplink_rain_hpa_power_dBW: float = 0.0  # 调整后的上行雨天的功放功率 (dBW)
+    adjusted_uplink_rain_hpa_power_W: float = 0.0  # 调整后的上行雨天的功放功率 (W)
+
     # 调整后的功率占用比
     adjusted_power_ratio: float = 0.0  # 调整后的功率占用比 (%)
 

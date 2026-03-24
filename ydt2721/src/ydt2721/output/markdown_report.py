@@ -188,7 +188,8 @@ class MarkdownReportGenerator:
             display_power_el_dBW = result.adjusted_power_el_dBW
             display_hpa_power_W = result.adjusted_hpa_power_W
             display_hpa_power_dBW = result.adjusted_hpa_power_dBW
-            display_margin = result.final_margin
+            # 使用重新计算的余量（adjusted_clear_sky_cn_t - cn_th）
+            display_margin = result.adjusted_clear_sky_cn_t - result.cn_th
             display_power_ratio = result.adjusted_power_ratio
             # 显示原始值作为对比
             show_comparison = True
@@ -207,11 +208,15 @@ class MarkdownReportGenerator:
         section.append("### 3.1 UPC余量与载波发射功率计算结果\n")
 
         # 功放饱和功率建议 - 使用雨天功率
-        hpa_power_rain_W = result.calculated_hpa_power_rain_W
+        # 如果启用了余量调整，使用调整后的雨天功率
         if result.margin_adjustment_enabled:
-            # 如果启用了余量调整，雨天功率也需要相应调整
-            # 但这里我们保持使用雨天计算功率，因为余量调整主要影响晴天功率
-            pass
+            rain_power_el_W = result.adjusted_uplink_rain_power_el_W
+            rain_hpa_power_W = result.adjusted_uplink_rain_hpa_power_W
+            rain_hpa_power_dBW = result.adjusted_uplink_rain_hpa_power_dBW
+        else:
+            rain_power_el_W = result.calculated_power_el_rain_W
+            rain_hpa_power_W = result.calculated_hpa_power_rain_W
+            rain_hpa_power_dBW = result.calculated_hpa_power_rain_dBW
 
         section.append(MarkdownReportGenerator._format_table({
             '参数': ['上行降雨衰减', '所需UPC余量', '晴天载波发射功率', '雨天载波发射功率', 'UPC是否满足'],
@@ -219,14 +224,14 @@ class MarkdownReportGenerator:
                 f"{result.uplink_rain_attenuation:.4f} dB",
                 f"**{result.calculated_upc_margin:.4f} dB**",
                 f"{display_power_el_W:.4f} W" + (f" (原始: {result.clear_sky_power_el_W:.4f} W)" if show_comparison else ""),
-                f"{result.calculated_power_el_rain_W:.4f} W",
+                f"{rain_power_el_W:.4f} W" + (f" (原始: {result.calculated_power_el_rain_W:.4f} W)" if show_comparison else ""),
                 "✅ 满足" if result.upc_sufficient else "❌ 不满足 (需要调整UPC或功放)",
             ]
         }))
 
         # 功放饱和功率建议
         section.append("\n**功放饱和功率建议:**\n")
-        section.append(f"- 功放饱和功率应 ≥ **{result.calculated_hpa_power_rain_W:.2f} W** ({result.calculated_hpa_power_rain_dBW:.2f} dBW)\n")
+        section.append(f"- 功放饱和功率应 ≥ **{rain_hpa_power_W:.2f} W** ({rain_hpa_power_dBW:.2f} dBW)\n")
 
         # 带宽计算
         section.append("### 3.2 载波带宽计算\n")
@@ -282,12 +287,21 @@ class MarkdownReportGenerator:
         uplink_rain_cn_d_str = f"{result.adjusted_clear_sky_cn_d:.2f}" + (f" (原始: {result.clear_sky_cn_d:.2f})" if show_comparison else "")
         uplink_rain_cn_t_str = f"{result.adjusted_clear_sky_cn_t:.2f}" + (f" (原始: {result.clear_sky_cn_t:.2f})" if show_comparison else "")
         uplink_rain_margin_str = f"**{result.adjusted_uplink_rain_margin:.2f}**" + (f" (原始: {result.uplink_rain_margin:.2f})" if show_comparison else "")
-        uplink_rain_power_str = f"{result.uplink_rain_power_el_W:.2f}"
+        # 使用调整后的雨天功率（如果启用了余量调整）
+        if result.margin_adjustment_enabled:
+            uplink_rain_power_str = f"{result.adjusted_uplink_rain_power_el_W:.2f}" + (f" (原始: {result.uplink_rain_power_el_W:.2f})" if show_comparison else "")
+        else:
+            uplink_rain_power_str = f"{result.uplink_rain_power_el_W:.2f}"
 
         # 下行降雨状态值
-        downlink_rain_cn_d_str = f"{result.adjusted_downlink_rain_cn_d:.2f}" + (f" (原始: {result.downlink_rain_cn_d:.2f})" if show_comparison else "")
-        downlink_rain_cn_t_str = f"{result.adjusted_downlink_rain_cn_t:.2f}" + (f" (原始: {result.downlink_rain_cn_t:.2f})" if show_comparison else "")
-        downlink_rain_margin_str = f"**{result.adjusted_downlink_rain_margin:.2f}**" + (f" (原始: {result.downlink_rain_margin:.2f})" if show_comparison else "")
+        if result.margin_adjustment_enabled:
+            downlink_rain_cn_d_str = f"{result.adjusted_downlink_rain_cn_d:.2f}" + (f" (原始: {result.downlink_rain_cn_d:.2f})" if show_comparison else "")
+            downlink_rain_cn_t_str = f"{result.adjusted_downlink_rain_cn_t:.2f}" + (f" (原始: {result.downlink_rain_cn_t:.2f})" if show_comparison else "")
+            downlink_rain_margin_str = f"**{result.adjusted_downlink_rain_margin:.2f}**" + (f" (原始: {result.downlink_rain_margin:.2f})" if show_comparison else "")
+        else:
+            downlink_rain_cn_d_str = f"{result.downlink_rain_cn_d:.2f}"
+            downlink_rain_cn_t_str = f"{result.downlink_rain_cn_t:.2f}"
+            downlink_rain_margin_str = f"**{result.downlink_rain_margin:.2f}**"
         downlink_rain_power_str = f"{display_power_el_W:.2f}"  # 下行降雨时发射功率与晴天相同
         downlink_rain_power_ratio_str = f"{display_power_ratio:.2f}" + (f" (原始: {result.downlink_rain_power_ratio:.2f})" if show_comparison else "")
 
@@ -342,16 +356,16 @@ class MarkdownReportGenerator:
             '下行C/N (dB)': [
                 f"{result.adjusted_clear_sky_cn_d:.2f}" + (f" (原始: {result.clear_sky_cn_d:.2f})" if show_comparison else ""),
                 f"{result.adjusted_clear_sky_cn_d:.2f}" + (f" (原始: {result.clear_sky_cn_d:.2f})" if show_comparison else ""),
-                f"{result.adjusted_downlink_rain_cn_d:.2f}" + (f" (原始: {result.downlink_rain_cn_d:.2f})" if show_comparison else ""),
+                f"{result.adjusted_downlink_rain_cn_d:.2f}" + (f" (原始: {result.downlink_rain_cn_d:.2f})" if show_comparison else "") if result.margin_adjustment_enabled else f"{result.downlink_rain_cn_d:.2f}",
             ],
             '系统C/N (dB)': [
                 f"{result.adjusted_clear_sky_cn_t:.2f}" + (f" (原始: {result.clear_sky_cn_t:.2f})" if show_comparison else ""),
                 f"{result.adjusted_clear_sky_cn_t:.2f}" + (f" (原始: {result.clear_sky_cn_t:.2f})" if show_comparison else ""),
-                f"{result.adjusted_downlink_rain_cn_t:.2f}" + (f" (原始: {result.downlink_rain_cn_t:.2f})" if show_comparison else ""),
+                f"{result.adjusted_downlink_rain_cn_t:.2f}" + (f" (原始: {result.downlink_rain_cn_t:.2f})" if show_comparison else "") if result.margin_adjustment_enabled else f"{result.downlink_rain_cn_t:.2f}",
             ],
             '载波发射功率 (W)': [
                 f"{display_power_el_W:.2f}" + (f" (原始: {result.clear_sky_power_el_W:.2f})" if show_comparison else ""),
-                f"{result.uplink_rain_power_el_W:.2f}",
+                f"{result.adjusted_uplink_rain_power_el_W:.2f}" if result.margin_adjustment_enabled else f"{result.uplink_rain_power_el_W:.2f}",
                 f"{display_power_el_W:.2f}",  # 下行降雨时发射功率与晴天相同
             ],
             '功率占用比 (%)': [
@@ -398,8 +412,9 @@ class MarkdownReportGenerator:
         # 根据余量调整状态确定显示的值
         if result.margin_adjustment_enabled:
             display_power_el_W = result.adjusted_power_el_W
-            display_margin = result.clear_sky_margin  # 使用final_margin作为调整后的余量
-            display_margin_val = result.final_margin
+            display_margin = result.clear_sky_margin
+            # 使用重新计算的余量（adjusted_clear_sky_cn_t - cn_th）
+            display_margin_val = result.adjusted_clear_sky_cn_t - result.cn_th
             display_power_ratio = result.adjusted_power_ratio
             show_comparison = True
         else:
@@ -412,10 +427,22 @@ class MarkdownReportGenerator:
         section.append("- 载波带宽占用比: **" + f"{result.bandwidth_ratio:.2f}%**\n")
         section.append("- 载波卫星功率占用比: **" + f"{display_power_ratio:.2f}%**" + (f" (原始: {result.clear_sky_power_ratio:.2f}%)**\n" if show_comparison else "**\n"))
         section.append("- 载波发射功率（晴天）: **" + f"{display_power_el_W:.2f} W**\n")
-        section.append("- 载波发射功率（上行降雨）: **" + f"{result.uplink_rain_power_el_W:.2f} W**\n")
+        # 根据余量调整状态确定雨天功率
+        if result.margin_adjustment_enabled:
+            rain_power_el_W = result.adjusted_uplink_rain_power_el_W
+        else:
+            rain_power_el_W = result.uplink_rain_power_el_W
+        section.append("- 载波发射功率（上行降雨）: **" + f"{rain_power_el_W:.2f} W**\n")
         section.append("- 系统余量（晴天C/N）: **" + f"{display_margin_val:.2f} dB**\n")
-        section.append("- 系统余量（上行降雨C/N）: **" + f"{result.adjusted_uplink_rain_margin:.2f} dB**\n")
-        section.append("- 系统余量（下行降雨C/N）: **" + f"{result.adjusted_downlink_rain_margin:.2f} dB**\n")
+        # 根据余量调整状态确定降雨余量
+        if result.margin_adjustment_enabled:
+            uplink_rain_margin_val = result.adjusted_uplink_rain_margin
+            downlink_rain_margin_val = result.adjusted_downlink_rain_margin
+        else:
+            uplink_rain_margin_val = result.uplink_rain_margin
+            downlink_rain_margin_val = result.downlink_rain_margin
+        section.append("- 系统余量（上行降雨C/N）: **" + f"{uplink_rain_margin_val:.2f} dB**\n")
+        section.append("- 系统余量（下行降雨C/N）: **" + f"{downlink_rain_margin_val:.2f} dB**\n")
         section.append("\n")
         return ''.join(section)
 
@@ -427,8 +454,9 @@ class MarkdownReportGenerator:
         # 根据余量自动生成结论
         # 如果启用了余量调整，使用调整后的余量值
         if result.margin_adjustment_enabled:
+            # 使用重新计算的余量（adjusted_clear_sky_cn_t - cn_th）
             margins = {
-                '晴天': result.final_margin,
+                '晴天': result.adjusted_clear_sky_cn_t - result.cn_th,
                 '上行降雨': result.adjusted_uplink_rain_margin,
                 '下行降雨': result.adjusted_downlink_rain_margin,
             }
@@ -453,16 +481,20 @@ class MarkdownReportGenerator:
 
         # 根据余量调整状态确定显示的功率值
         if result.margin_adjustment_enabled:
-            display_hpa_power_W = result.adjusted_hpa_power_W
-            display_hpa_power_dBW = result.adjusted_hpa_power_dBW
+            display_clear_power_W = result.adjusted_power_el_W
+            display_rain_power_W = result.adjusted_uplink_rain_power_el_W
+            display_hpa_power_W = result.adjusted_uplink_rain_hpa_power_W
+            display_hpa_power_dBW = result.adjusted_uplink_rain_hpa_power_dBW
             power_note = " (调整后)"
         else:
+            display_clear_power_W = result.calculated_power_el_clear_W
+            display_rain_power_W = result.calculated_power_el_rain_W
             display_hpa_power_W = result.calculated_hpa_power_rain_W
             display_hpa_power_dBW = result.calculated_hpa_power_rain_dBW
             power_note = ""
 
-        section.append(f"- **晴天载波发射功率: {result.calculated_power_el_clear_W:.4f} W**\n")
-        section.append(f"- **雨天载波发射功率: {result.calculated_power_el_rain_W:.4f} W**\n")
+        section.append(f"- **晴天载波发射功率: {display_clear_power_W:.4f} W**{power_note}\n")
+        section.append(f"- **雨天载波发射功率: {display_rain_power_W:.4f} W**{power_note}\n")
         section.append(f"- **功放饱和功率: ≥ {display_hpa_power_W:.2f} W ({display_hpa_power_dBW:.2f} dBW)**{power_note}\n")
 
         if result.upc_sufficient:
@@ -470,8 +502,8 @@ class MarkdownReportGenerator:
         else:
             section.append("- **UPC评估:** 需要调整配置以满足可用度要求 ⚠️\n")
             section.append(f"- **建议:** 将UPC余量调整为至少 {result.calculated_upc_margin:.2f} dB\n")
-            section.append(f"- **建议:** 雨天载波发射功率需要至少 {result.calculated_power_el_rain_W:.4f} W\n")
-            section.append(f"- **建议:** 功放饱和功率需要至少 {result.calculated_hpa_power_rain_W:.4f} W\n")
+            section.append(f"- **建议:** 雨天载波发射功率需要至少 {display_rain_power_W:.4f} W\n")
+            section.append(f"- **建议:** 功放饱和功率需要至少 {display_hpa_power_W:.4f} W\n")
 
         # 余量调整结果
         if result.margin_adjustment_enabled:

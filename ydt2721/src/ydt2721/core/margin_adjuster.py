@@ -110,8 +110,8 @@ def calculate_margin_for_eirp(
     rx_gt: float,
     noise_bw: float,
     cn_th: float,
+    current_eirp_sl: float,  # 当前EIRP，用于计算调整量
     # 干扰参数
-    cn_u: float,
     ci_im: float,
     ci_u_as: float,
     ci_d_as: float,
@@ -121,12 +121,13 @@ def calculate_margin_for_eirp(
     """
     给定卫星载波EIRP计算系统余量
 
-    注意: 只调整下行EIRP，上行C/N保持不变
-    因为EIRP_sl是卫星转发器输出的载波EIRP
+    注意: 调整EIRP时，上行C/N和下行C/N都会变化
+    - 下行C/N直接受EIRP影响
+    - 上行C/N通过PFD调整间接影响（EIRP调整量 = PFD调整量）
 
     Args:
         eirp_sl: 卫星载波EIRP (dBW)
-        pfd: 功率通量密度 (dB(W/m²))
+        pfd: 原始功率通量密度 (dB(W/m²))
         gm2_tx: 发射天线单位面积增益 (dB/m²)
         sat_gt: 卫星G/T (dB/K)
         downlink_loss: 下行自由空间损耗 (dB)
@@ -134,7 +135,7 @@ def calculate_margin_for_eirp(
         rx_gt: 地球站G/T (dB/K)
         noise_bw: 噪声带宽 (Hz)
         cn_th: 门限载噪比 (dB)
-        cn_u: 上行载噪比 (dB)
+        current_eirp_sl: 当前EIRP (dBW)，用于计算EIRP调整量
         ci_im: 互调干扰载干比 (dB)
         ci_u_as: 上行邻星干扰载干比 (dB)
         ci_d_as: 下行邻星干扰载干比 (dB)
@@ -144,8 +145,17 @@ def calculate_margin_for_eirp(
     Returns:
         系统余量 (dB)
     """
-    from .clear_sky import calculate_downlink_cn, calculate_system_cn
+    from .clear_sky import calculate_downlink_cn, calculate_uplink_cn, calculate_system_cn
     from .constants import BOLTZMANN_CONSTANT_DB
+
+    # 计算EIRP调整量
+    eirp_adjustment = eirp_sl - current_eirp_sl
+
+    # 调整后的PFD（PFD调整量 = EIRP调整量）
+    pfd_adjusted = pfd + eirp_adjustment
+
+    # 计算调整后的上行C/N
+    cn_u = calculate_uplink_cn(pfd_adjusted, gm2_tx, sat_gt, noise_bw)
 
     # 计算下行C/N (使用给定的EIRP)
     cn_d = calculate_downlink_cn(eirp_sl, downlink_loss, rx_loss_ar, rx_gt, noise_bw)
@@ -172,8 +182,7 @@ def adjust_satellite_eirp(
     rx_gt: float,
     noise_bw: float,
     cn_th: float,
-    # 干扰参数
-    cn_u: float,
+    # 干扰参数（移除cn_u，现在在margin_func中计算）
     ci_im: float,
     ci_u_as: float,
     ci_d_as: float,
@@ -185,6 +194,10 @@ def adjust_satellite_eirp(
 ) -> Dict:
     """
     调整卫星EIRP以实现目标系统余量
+
+    注意: 调整EIRP时，上行C/N和下行C/N都会变化
+    - 下行C/N直接受EIRP影响
+    - 上行C/N通过PFD调整间接影响（EIRP调整量 = PFD调整量）
 
     Args:
         target_margin: 目标系统余量 (dB)
@@ -216,7 +229,7 @@ def adjust_satellite_eirp(
             rx_gt=rx_gt,
             noise_bw=noise_bw,
             cn_th=cn_th,
-            cn_u=cn_u,
+            current_eirp_sl=current_eirp_sl,  # 传入当前EIRP用于计算调整量
             ci_im=ci_im,
             ci_u_as=ci_u_as,
             ci_d_as=ci_d_as,

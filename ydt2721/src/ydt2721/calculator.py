@@ -510,8 +510,7 @@ def complete_link_budget(
             rx_gt=rx_gt,
             noise_bw=noise_bw,
             cn_th=cn_th,
-            # 干扰参数
-            cn_u=cn_u,
+            # 干扰参数（移除cn_u，现在在margin_func中计算）
             ci_im=ci_im,
             ci_u_as=ci_u_as,
             ci_d_as=ci_d_as,
@@ -555,7 +554,7 @@ def complete_link_budget(
             result.adjusted_clear_sky_cn_u, result.adjusted_clear_sky_cn_d, ci_im, ci_u_as, ci_d_as, ci_u_xp, ci_d_xp
         )
 
-        # 2. 上行降雨状态：使用调整后的EIRP重新计算余量
+        # 2. 上行降雨状态：使用调整后的EIRP重新计算余量和功率
         # 注意：上行降雨时，UPC补偿上行C/N，但下行C/N会因为EIRP调整而变化
         cn_d_uplink_rain_adj = calculate_downlink_cn(
             result.adjusted_eirp_sl, downlink_loss, rx_loss_ar, rx_gt, noise_bw
@@ -565,6 +564,18 @@ def complete_link_budget(
             result.adjusted_clear_sky_cn_u, cn_d_uplink_rain_adj, ci_im, ci_u_as, ci_d_as, ci_u_xp, ci_d_xp
         )
         result.adjusted_uplink_rain_margin = cn_t_uplink_rain_adj - cn_th
+
+        # 计算调整后的上行降雨功率
+        # 雨天EIRP = 晴天EIRP + UPC补偿量
+        # 调整后的雨天EIRP = 调整后的晴天EIRP + UPC补偿量
+        upc_comp = min(uplink_rain_att, upc_max)
+        eirp_el_rain_adjusted = result.adjusted_power_el_dBW + tx_antenna_gain - tx_feed_loss + upc_comp
+        # 但实际上雨天发射功率 = 调整后的晴天发射功率 + UPC补偿
+        result.adjusted_uplink_rain_power_el_dBW = result.adjusted_power_el_dBW + upc_comp
+        result.adjusted_uplink_rain_power_el_W = 10 ** (result.adjusted_uplink_rain_power_el_dBW / 10)
+        # 雨天功放功率
+        result.adjusted_uplink_rain_hpa_power_dBW = result.adjusted_uplink_rain_power_el_dBW + tx_hpa_bo
+        result.adjusted_uplink_rain_hpa_power_W = 10 ** (result.adjusted_uplink_rain_hpa_power_dBW / 10)
 
         # 3. 下行降雨状态：使用调整后的EIRP重新计算余量
         cn_d_downlink_rain_adj = calculate_downlink_rain_cn(
