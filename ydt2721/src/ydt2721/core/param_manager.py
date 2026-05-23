@@ -25,8 +25,8 @@ class ParameterValidator:
         'antenna_diameter': (0.1, 50),  # 米
         'efficiency': (0.1, 1.0),
 
-        # 频率（GHz）
-        'frequency': (1, 40),
+        # 频率（GHz）- 扩展支持Q/V波段
+        'frequency': (1, 60),
 
         # 损耗（dB）
         'feed_loss': (0, 10),
@@ -56,8 +56,8 @@ class ParameterValidator:
         'sat_bo_o': (0, 15),
         'sat_sfd_ref': (-120, -60),
 
-        # 转发器带宽
-        'transponder_bw': (1e6, 200e6),
+        # 转发器带宽 - 扩展支持宽带转发器
+        'transponder_bw': (1e6, 500e6),
     }
 
     @classmethod
