@@ -62,7 +62,8 @@ def test_link_budget():
         rx_receiver_noise_temp=75,
 
         # 系统参数
-        availability=99.66,
+        uplink_availability=99.66,
+        downlink_availability=99.66,
     )
 
     # 验证计算结果
@@ -92,7 +93,7 @@ def test_link_budget():
     print(f"📊 系统C/N: {result.clear_sky_cn_t:.2f} dB")
     print(f"📊 门限C/N: {result.cn_th:.2f} dB")
     print(f"📊 晴天系统余量: {result.clear_sky_margin:.2f} dB")
-    print(f"📊 晴天功放功率: {result.clear_sky_hpa_power:.2f} W")
+    print(f"📊 晴天功放功率: {result.clear_sky_hpa_power_W:.2f} W")
     print(f"📊 功率占用比: {result.clear_sky_power_ratio:.2f}%")
 
 

@@ -152,7 +152,8 @@ def test_full_link_budget():
         rx_receiver_noise_temp=75,
 
         # 系统参数
-        availability=99.66,
+        uplink_availability=99.66,
+        downlink_availability=99.66,
     )
 
     # 验证带宽计算
