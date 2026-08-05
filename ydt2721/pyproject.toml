@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ydt2721"
-version = "1.0.0"
 description = "YDT 2721 卫星链路计算软件 - 基于YD/T 2721-2014标准"
 readme = "README.md"
 requires-python = ">=3.10"
+dynamic = ["version"]
 license = {text = "MIT"}
 authors = [
     {name = "shiyongxin", email = "syx189@189.cn"}
@@ -28,6 +28,12 @@ dependencies = [
     "pandas>=2.0.0",
     "openpyxl>=3.1.0",
     "reportlab>=4.0.0",
+    "itur>=0.4.0",
+    # itur 0.4.0 uses np.string_, removed in numpy 2.x — keep numpy < 2
+    "numpy>=1.26.0,<2.0.0",
+    "scipy>=1.13.0",
+    "pyproj>=3.6.0",
+    "astropy>=6.0.0",
 ]
 
 [project.optional-dependencies]
@@ -41,13 +47,15 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/ydt2721"
-Documentation = "https://ydt2721.readthedocs.io"
-Repository = "https://github.com/yourusername/ydt2721"
-Issues = "https://github.com/yourusername/ydt2721/issues"
+Homepage = "https://github.com/shiyongxin/ydt2721"
+Repository = "https://github.com/shiyongxin/ydt2721"
+Issues = "https://github.com/shiyongxin/ydt2721/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "ydt2721._version.__version__"}
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

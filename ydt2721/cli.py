@@ -12,6 +12,7 @@ from pathlib import Path
 # 添加src到路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
+from ydt2721._version import __version__
 from ydt2721 import (
     complete_link_budget,
     MarkdownReportGenerator,
@@ -808,7 +809,7 @@ def execute_calculation(config: dict, output_prefix: str, output_format: str, pr
         # 如果有反向计算结果，合并到JSON输出中
         export_data = {
             'metadata': {
-                'version': '1.0.0',
+                'version': __version__,
                 'timestamp': __import__('datetime').datetime.now().isoformat(),
                 'standard': 'YD/T 2721-2014',
             },

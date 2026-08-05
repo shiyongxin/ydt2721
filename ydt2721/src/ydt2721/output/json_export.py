@@ -5,6 +5,7 @@ M08: JSON数据导出
 import json
 from typing import Dict, Any
 from datetime import datetime
+from ydt2721._version import __version__
 
 
 class JSONExporter:
@@ -33,7 +34,7 @@ class JSONExporter:
             # 构建完整的导出数据结构
             export_data = {
                 'metadata': {
-                    'version': '1.0.0',
+                    'version': __version__,
                     'timestamp': datetime.now().isoformat(),
                     'standard': 'YD/T 2721-2014',
                 },

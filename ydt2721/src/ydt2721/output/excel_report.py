@@ -5,6 +5,7 @@ M08: Excel格式报告生成器
 import pandas as pd
 from typing import Dict, Any
 from datetime import datetime
+from ydt2721._version import __version__
 
 
 class ExcelReportGenerator:
@@ -60,7 +61,7 @@ class ExcelReportGenerator:
 
         data = [
             ['计算时间', datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
-            ['软件版本', '1.0.0'],
+            ['软件版本', __version__],
             ['', ''],
             ['反向计算结果（从可用度计算的UPC余量和载波发射功率）', ''],
             ['上行降雨衰减', f"{result.uplink_rain_attenuation:.4f} dB"],

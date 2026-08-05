@@ -4,6 +4,7 @@ M08: Markdown格式报告生成器
 
 from typing import Dict, Any
 from datetime import datetime
+from ydt2721._version import __version__
 
 
 class MarkdownReportGenerator:
@@ -65,7 +66,7 @@ class MarkdownReportGenerator:
         """生成报告头部"""
         header = ["## 一、网络一般信息\n"]
         header.append(f"- **计算时间:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        header.append(f"- **软件版本:** 1.0.0\n")
+        header.append(f"- **软件版本:** {__version__}\n")
 
         satellite = input_params.get('satellite', {})
         tx_station = input_params.get('tx_station', {})

@@ -11,6 +11,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from ydt2721 import complete_link_budget
+from ydt2721._version import __version__
 from ydt2721.core.param_manager import ParameterValidator, ParameterManager
 from ydt2721.models.dataclass import SatelliteParams, CarrierParams, EarthStationParams
 from ydt2721.output import (
@@ -208,7 +209,7 @@ class TestCompleteWorkflow:
         with open(json_file, 'r', encoding='utf-8') as f:
             json_data = json.load(f)
 
-        assert json_data['metadata']['version'] == '1.0.0'
+        assert json_data['metadata']['version'] == __version__
         assert 'summary' in json_data
 
 

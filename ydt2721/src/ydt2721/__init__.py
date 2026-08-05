@@ -5,7 +5,7 @@ YDT 2721 卫星链路计算软件
 《地球静止轨道卫星固定业务的链路计算方法》实现
 """
 
-__version__ = "1.0.0"
+from ._version import __version__
 __author__ = "编程新"
 
 from .calculator import complete_link_budget, LinkBudgetResult

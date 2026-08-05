@@ -11,6 +11,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from ydt2721 import complete_link_budget
+from ydt2721._version import __version__
 from ydt2721.output import (
     MarkdownReportGenerator,
     ExcelReportGenerator,
@@ -201,7 +202,7 @@ class TestJSONExporter:
         assert 'summary' in data
 
         # 验证metadata
-        assert data['metadata']['version'] == '1.0.0'
+        assert data['metadata']['version'] == __version__
         assert data['metadata']['standard'] == 'YD/T 2721-2014'
 
         # 验证summary

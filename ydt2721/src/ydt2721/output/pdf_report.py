@@ -12,6 +12,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from typing import Dict, Any, Optional
 from datetime import datetime
 from pathlib import Path
+from ydt2721._version import __version__
 
 from .font_manager import FontManager, setup_chinese_fonts
 
@@ -247,7 +248,7 @@ class PDFReportGenerator:
         if use_chinese:
             data = [
                 ['计算时间', datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
-                ['软件版本', '1.0.0'],
+                ['软件版本', __version__],
                 ['卫星经度', f"{satellite.get('longitude', 0)}°"],
                 ['发射站', f"{tx_station.get('name', 'Unknown')}"],
                 ['接收站', f"{rx_station.get('name', 'Unknown')}"],
@@ -255,7 +256,7 @@ class PDFReportGenerator:
         else:
             data = [
                 ['Calculation Time', datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
-                ['Software Version', '1.0.0'],
+                ['Software Version', __version__],
                 ['Satellite Longitude', f"{satellite.get('longitude', 0)}°"],
                 ['Tx Station', f"{tx_station.get('name', 'Unknown')}"],
                 ['Rx Station', f"{rx_station.get('name', 'Unknown')}"],
