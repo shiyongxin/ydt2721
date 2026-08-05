@@ -88,8 +88,7 @@
 │   │       │   ├── rain_impact.py         # M07
 │   │       │   ├── reverse_calc.py        # M09
 │   │       │   ├── param_manager.py       # M01
-│   │       │   ├── itu_rain_wrapper.py    # ITU-Rpy封装
-│   │       │   └── rain_selector.py       # 降雨计算器
+│   │       │   └── itu_rain_wrapper.py    # ITU-Rpy封装
 │   │       ├── models/                    # 数据模型
 │   │       │   └── dataclass.py
 │   │       └── output/                    # 输出模块

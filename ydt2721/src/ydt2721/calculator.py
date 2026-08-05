@@ -3,7 +3,7 @@
 """
 
 import math
-from .models.dataclass import LinkBudgetResult
+from .models.dataclass import LinkBudgetResult, CalculationInput
 
 # 导入所有计算模块
 from .core.satellite import (
@@ -591,3 +591,79 @@ def complete_link_budget(
         result.adjusted_downlink_rain_power_ratio = power_ratio  # 下行降雨时功率占用比不变
 
     return result
+
+
+def complete_link_budget_from_input(calc_input: CalculationInput) -> LinkBudgetResult:
+    """完整链路计算（通过 CalculationInput 参数对象）
+
+    Args:
+        calc_input: 完整计算输入参数
+
+    Returns:
+        LinkBudgetResult: 包含所有计算结果
+    """
+    s = calc_input.satellite
+    c = calc_input.carrier
+    tx = calc_input.tx_station
+    rx = calc_input.rx_station
+    inter = calc_input.interference
+
+    return complete_link_budget(
+        # 卫星参数
+        sat_longitude=s.longitude,
+        sat_eirp_ss=s.eirp_ss,
+        sat_gt=s.gt_s,
+        sat_gt_ref=s.gt_s_ref,
+        sat_sfd_ref=s.sfd_ref,
+        sat_bo_i=s.bo_i,
+        sat_bo_o=s.bo_o,
+        sat_transponder_bw=s.transponder_bw,
+
+        # 载波参数
+        info_rate=c.info_rate,
+        fec_rate=c.fec_rate,
+        modulation=c.modulation,
+        spread_gain=c.spread_gain,
+        ebno_th=c.ebno_threshold,
+        alpha1=c.alpha1,
+        alpha2=c.alpha2,
+
+        # 发射站参数
+        tx_station_name=tx.name,
+        tx_lat=tx.latitude,
+        tx_lon=tx.longitude,
+        tx_antenna_diameter=tx.antenna_diameter,
+        tx_efficiency=tx.efficiency,
+        tx_frequency=tx.frequency,
+        tx_polarization=tx.polarization,
+        tx_feed_loss=tx.feed_loss,
+        tx_loss_at=tx.loss_at,
+        upc_max=tx.upc_max_comp,
+        tx_hpa_bo=tx.hpa_bo,
+
+        # 接收站参数
+        rx_station_name=rx.name,
+        rx_lat=rx.latitude,
+        rx_lon=rx.longitude,
+        rx_antenna_diameter=rx.antenna_diameter,
+        rx_efficiency=rx.efficiency,
+        rx_frequency=rx.frequency,
+        rx_polarization=rx.polarization,
+        rx_feed_loss=rx.feed_loss,
+        rx_loss_ar=rx.loss_ar,
+        rx_antenna_noise_temp=rx.antenna_noise_temp,
+        rx_receiver_noise_temp=rx.receiver_noise_temp,
+
+        # 系统参数
+        uplink_availability=calc_input.uplink_availability,
+        downlink_availability=calc_input.downlink_availability,
+        target_margin=calc_input.target_margin,
+
+        # 干扰参数（可选）
+        ci0_im=inter.ci0_im if inter else None,
+        ci0_u_as=inter.ci0_u_as if inter else None,
+        ci0_d_as=inter.ci0_d_as if inter else None,
+        ci0_u_xp=inter.ci0_u_xp if inter else None,
+        ci0_d_xp=inter.ci0_d_xp if inter else None,
+        adj_sat_lon=s.adj_sat_longitude,
+    )

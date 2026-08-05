@@ -8,7 +8,7 @@ YDT 2721 卫星链路计算软件
 from ._version import __version__
 __author__ = "编程新"
 
-from .calculator import complete_link_budget, LinkBudgetResult
+from .calculator import complete_link_budget, complete_link_budget_from_input, LinkBudgetResult
 from .output import (
     MarkdownReportGenerator,
     ExcelReportGenerator,
@@ -20,6 +20,7 @@ from .output import (
 
 __all__ = [
     "complete_link_budget",
+    "complete_link_budget_from_input",
     "LinkBudgetResult",
     "MarkdownReportGenerator",
     "ExcelReportGenerator",
