@@ -9,6 +9,7 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from typing import Dict, Any, Optional
 from datetime import datetime
 from pathlib import Path
@@ -39,14 +40,21 @@ class PDFReportGenerator:
         注册中文字体
 
         使用 FontManager 获取字体路径，支持:
-        1. 已下载的开源字体 (Source Han Sans / 思源黑体)
+        1. 已下载的开源字体 (WenQuanYi Micro Hei / 文泉驿微米黑)
         2. 系统自带的中文字体
+        3. reportlab 内置 CID 中文字体 (STSong-Light，无需字体文件)
         """
         try:
             font_info = FontManager.get_font_path('normal')
             if font_info is None:
-                print("⚠️ 未找到可用的中文字体")
-                return None
+                # 回退到 reportlab 内置 CID 中文字体（无需字体文件）
+                try:
+                    pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
+                    print("✅ 已注册内置 CID 中文字体: STSong-Light")
+                    return 'STSong-Light'
+                except Exception as ce:
+                    print(f"⚠️ 未找到可用的中文字体（CID 回退失败: {ce}）")
+                    return None
 
             font_path, subfont_index = font_info
 

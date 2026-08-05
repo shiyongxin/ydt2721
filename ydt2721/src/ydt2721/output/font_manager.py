@@ -7,6 +7,7 @@ import os
 import sys
 import platform
 import shutil
+import struct
 from pathlib import Path
 from typing import Optional, Tuple
 from urllib.request import urlopen
@@ -20,19 +21,17 @@ class FontManager:
     # 字体存储目录
     FONT_DIR = Path.home() / '.ydt2721' / 'fonts'
 
-    # 开源中文字体配置 (Source Han Sans / 思源黑体)
+    # 开源中文字体配置 (WenQuanYi Micro Hei / 文泉驿微米黑)
+    # 注意：reportlab 的 TTFont 仅支持 TrueType (glyf) 轮廓字体。
+    # 思源黑体 / Noto CJK 使用 CFF (PostScript) 轮廓 (OTTO 签名)，reportlab 无法使用，
+    # 因此这里选择 TrueType 格式的文泉驿微米黑（无独立粗体，粗体回退到普通面）。
     FONTS = {
-        'SourceHanSans': {
-            'name': 'Source Han Sans CN (思源黑体)',
+        'WenQuanYi': {
+            'name': 'WenQuanYi Micro Hei (文泉驿微米黑)',
             'normal': {
-                'url': 'https://github.com/adobe-fonts/source-han-sans/raw/release/SubsetOTF/CN/SourceHanSansCN-Regular.otf',
-                'filename': 'SourceHanSansCN-Regular.otf',
-                'register_name': 'SourceHanSansCN',
-            },
-            'bold': {
-                'url': 'https://github.com/adobe-fonts/source-han-sans/raw/release/SubsetOTF/CN/SourceHanSansCN-Bold.otf',
-                'filename': 'SourceHanSansCN-Bold.otf',
-                'register_name': 'SourceHanSansCN-Bold',
+                'url': 'https://cdn.jsdelivr.net/gh/anthonyfok/fonts-wqy-microhei@master/wqy-microhei.ttc',
+                'filename': 'wqy-microhei.ttc',
+                'register_name': 'WenQuanYiMicroHei',
             },
         }
     }
@@ -63,14 +62,27 @@ class FontManager:
         },
         'Linux': {  # Linux
             'normal': [
-                '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc',
-                '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+                # Fedora / RHEL 系
+                '/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc',
+                # Debian / Ubuntu 系
                 '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+                # Arch 系
+                '/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc',
+                # 文泉驿
+                '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc',
+                '/usr/share/fonts/wqy-microhei/wqy-microhei.ttc',
+                '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',
             ],
             'bold': [
-                '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc',
-                '/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc',
+                # Fedora / RHEL 系
+                '/usr/share/fonts/google-noto-cjk/NotoSansCJK-Bold.ttc',
+                # Debian / Ubuntu 系
                 '/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc',
+                # Arch 系
+                '/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc',
+                # 文泉驿（无独立粗体，用普通面回退）
+                '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc',
+                '/usr/share/fonts/wqy-microhei/wqy-microhei.ttc',
             ],
         },
     }
@@ -162,8 +174,32 @@ class FontManager:
         except Exception:
             return False
 
+    @staticmethod
+    def _has_truetype_outlines(font_path: str, subfont_index: int = 0) -> bool:
+        """
+        判断字体是否为 TrueType (glyf) 轮廓
+
+        reportlab 的 TTFont 仅支持 TrueType 轮廓字体；
+        CFF (PostScript) 轮廓字体（OTTO 签名，如思源黑体 / Noto CJK）无法使用。
+        """
+        try:
+            with open(font_path, 'rb') as f:
+                sig = f.read(4)
+                if sig == b'ttcf':
+                    # TTC 头: tag(4) + version(4) + numFonts(4) + offsetTable[numFonts]
+                    f.seek(0)
+                    num_fonts = int.from_bytes(f.read(12)[8:12], 'big')
+                    offsets = struct.unpack(f'>{num_fonts}I', f.read(4 * num_fonts))
+                    if subfont_index >= len(offsets):
+                        return False
+                    f.seek(offsets[subfont_index])
+                    sig = f.read(4)
+                return sig in (b'\x00\x01\x00\x00', b'true')
+        except Exception:
+            return False
+
     @classmethod
-    def download_font(cls, font_key: str = 'SourceHanSans', force: bool = False) -> bool:
+    def download_font(cls, font_key: str = 'WenQuanYi', force: bool = False) -> bool:
         """
         下载开源中文字体
 
@@ -184,20 +220,22 @@ class FontManager:
         success = True
 
         # 下载普通字体
-        normal_config = font_config['normal']
-        normal_path = font_dir / normal_config['filename']
+        normal_config = font_config.get('normal')
+        if normal_config:
+            normal_path = font_dir / normal_config['filename']
 
-        if force or not normal_path.exists() or not cls._verify_font_file(normal_path):
-            if not cls._download_file(normal_config['url'], normal_path, f"{font_config['name']} (普通)"):
-                success = False
+            if force or not normal_path.exists() or not cls._verify_font_file(normal_path):
+                if not cls._download_file(normal_config['url'], normal_path, f"{font_config['name']} (普通)"):
+                    success = False
 
-        # 下载粗体字体
-        bold_config = font_config['bold']
-        bold_path = font_dir / bold_config['filename']
+        # 下载粗体字体（可选配置，缺失时回退到普通面）
+        bold_config = font_config.get('bold')
+        if bold_config:
+            bold_path = font_dir / bold_config['filename']
 
-        if force or not bold_path.exists() or not cls._verify_font_file(bold_path):
-            if not cls._download_file(bold_config['url'], bold_path, f"{font_config['name']} (粗体)"):
-                success = False
+            if force or not bold_path.exists() or not cls._verify_font_file(bold_path):
+                if not cls._download_file(bold_config['url'], bold_path, f"{font_config['name']} (粗体)"):
+                    success = False
 
         return success
 
@@ -221,16 +259,31 @@ class FontManager:
 
         for font_path in font_paths:
             if os.path.exists(font_path):
-                # TTC 文件需要指定子字体索引
-                if font_path.endswith('.ttc'):
-                    # macOS PingFang: 0=SC, 1=TC
-                    # Windows 微软雅黑: 0=正常, 1=粗体
-                    if font_type == 'bold':
-                        return (font_path, 1)
-                    return (font_path, 0)
-                return (font_path, None)
+                subfont_index = cls._subfont_index(font_path, font_type) if font_path.endswith('.ttc') else None
+                # 跳过 reportlab 无法使用的 CFF (PostScript) 轮廓字体
+                if not cls._has_truetype_outlines(font_path, subfont_index or 0):
+                    continue
+                return (font_path, subfont_index)
 
         return None
+
+    @staticmethod
+    def _subfont_index(font_path: str, font_type: str = 'normal') -> int:
+        """
+        确定 TTC 文件中中文字体（简体）的子字体索引
+
+        Noto Sans CJK / Source Han Sans TTC: 0=JP, 1=KR, 2=SC, 3=TC, 4=HK
+        macOS PingFang: 0=SC, 1=TC
+        Windows 微软雅黑: 0=正常, 1=粗体
+        文泉驿等单面 TTC: 0
+        """
+        if 'NotoSansCJK' in font_path or 'SourceHanSans' in font_path:
+            return 2  # 简体中文 (SC)
+        if 'wqy' in font_path.lower():
+            return 0  # 文泉驿微米黑为单面 TTC
+        if font_type == 'bold':
+            return 1
+        return 0
 
     @classmethod
     def get_font_path(cls, font_type: str = 'normal') -> Optional[Tuple[str, Optional[int]]]:
@@ -258,7 +311,10 @@ class FontManager:
             if config:
                 font_path = font_dir / config['filename']
                 if font_path.exists() and cls._verify_font_file(font_path):
-                    result = (str(font_path), None)
+                    if not cls._has_truetype_outlines(str(font_path)):
+                        continue  # CFF 字体 reportlab 无法使用，跳过
+                    subfont_index = cls._subfont_index(str(font_path), font_type) if str(font_path).endswith('.ttc') else None
+                    result = (str(font_path), subfont_index)
                     cls._font_cache[cache_key] = result
                     return result
 
